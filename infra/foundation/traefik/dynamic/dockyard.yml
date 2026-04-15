@@ -1,0 +1,7 @@
+http:
+  middlewares:
+    dockyard-secure-headers:
+      headers:
+        stsSeconds: 31536000
+        browserXssFilter: true
+        contentTypeNosniff: true

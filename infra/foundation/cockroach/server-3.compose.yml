@@ -1,0 +1,17 @@
+services:
+  cockroach:
+    image: cockroachdb/cockroach:v25.3.3
+    container_name: cockroach-3
+    restart: unless-stopped
+    command: >
+      start
+      --advertise-addr=${COCKROACH_ADVERTISE_ADDR:-server-3.local}:26257
+      --listen-addr=0.0.0.0:26257
+      --http-addr=0.0.0.0:8080
+      --join=${COCKROACH_JOIN:-server-1.local:26257,server-2.local:26257,server-3.local:26257}
+      --store=/cockroach/cockroach-data
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    volumes:
+      - ${COCKROACH_DATA_DIR:-/opt/dockyard/cockroach}:/cockroach/cockroach-data

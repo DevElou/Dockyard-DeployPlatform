@@ -1,30 +1,41 @@
 GO ?= go
 NPM ?= npm
+DOCKER_COMPOSE ?= docker-compose
+GOCACHE ?= $(CURDIR)/.gocache
 
-.PHONY: run-api run-worker run-agent fmt build test
+.PHONY: run-api run-worker run-agent web-dev fmt build test local-infra-up local-infra-down local-infra-logs all
 
 run-api:
-	$(GO) run ./cmd/control-plane-api
+	env GOCACHE=$(GOCACHE) $(GO) run ./cmd/control-plane-api
 
 run-worker:
-	$(GO) run ./cmd/orchestrator-worker
+	env GOCACHE=$(GOCACHE) $(GO) run ./cmd/orchestrator-worker
 
 run-agent:
-	$(GO) run ./cmd/deploy-agent
+	env GOCACHE=$(GOCACHE) $(GO) run ./cmd/deploy-agent
+
+web-dev:
+	cd web && $(NPM) run dev
 
 fmt:
 	$(GO) fmt ./...
 
 build:
-	$(GO) build ./...
+	env GOCACHE=$(GOCACHE) $(GO) build ./...
 
 test:
-	$(GO) test ./...
+	env GOCACHE=$(GOCACHE) $(GO) test ./...
+
+local-infra-up:
+	$(DOCKER_COMPOSE) -f infra/local/docker-compose.yml up -d
+
+local-infra-down:
+	$(DOCKER_COMPOSE) -f infra/local/docker-compose.yml down
+
+local-infra-logs:
+	$(DOCKER_COMPOSE) -f infra/local/docker-compose.yml logs -f
 
 all: 
 	$(MAKE) fmt
 	$(MAKE) build
 	$(MAKE) test
-	$(MAKE) run-api
-	$(MAKE) run-worker
-	$(MAKE) run-agent

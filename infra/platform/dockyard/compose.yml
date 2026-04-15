@@ -1,0 +1,61 @@
+services:
+  control-plane-api:
+    build:
+      context: ../../..
+      dockerfile: build/control-plane-api.Dockerfile
+    image: dockyard/control-plane-api:dev
+    container_name: dockyard-control-plane-api
+    restart: unless-stopped
+    environment:
+      DOCKYARD_API_ADDR: ":8080"
+      DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:-postgresql://root@server-1.local:26257/dockyard?sslmode=disable}
+      DOCKYARD_REDIS_ADDR: ${DOCKYARD_REDIS_ADDR:-server-1.local:6379}
+    ports:
+      - "8080:8080"
+    networks:
+      - dockyard_platform
+      - dockyard_edge
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.dockyard-api.rule: Host(`${DOCKYARD_API_HOST:-api.dockyard.local}`)
+      traefik.http.routers.dockyard-api.entrypoints: web
+      traefik.http.services.dockyard-api.loadbalancer.server.port: "8080"
+
+  orchestrator-worker:
+    build:
+      context: ../../..
+      dockerfile: build/orchestrator-worker.Dockerfile
+    image: dockyard/orchestrator-worker:dev
+    container_name: dockyard-orchestrator-worker
+    restart: unless-stopped
+    environment:
+      DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:-postgresql://root@server-1.local:26257/dockyard?sslmode=disable}
+      DOCKYARD_REDIS_ADDR: ${DOCKYARD_REDIS_ADDR:-server-1.local:6379}
+    networks:
+      - dockyard_platform
+
+  web:
+    build:
+      context: ../../..
+      dockerfile: build/web.Dockerfile
+    image: dockyard/web:dev
+    container_name: dockyard-web
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    networks:
+      - dockyard_platform
+      - dockyard_edge
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.dockyard-web.rule: Host(`${DOCKYARD_WEB_HOST:-dockyard.local}`)
+      traefik.http.routers.dockyard-web.entrypoints: web
+      traefik.http.services.dockyard-web.loadbalancer.server.port: "3000"
+
+networks:
+  dockyard_platform:
+    external: true
+  dockyard_edge:
+    external: true

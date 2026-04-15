@@ -1,0 +1,7 @@
+.git
+.gocache
+web/node_modules
+web/.next
+infra
+docs
+db

@@ -1,0 +1,21 @@
+services:
+  deploy-agent:
+    build:
+      context: ../../..
+      dockerfile: build/deploy-agent.Dockerfile
+    image: dockyard/deploy-agent:dev
+    container_name: dockyard-deploy-agent
+    restart: unless-stopped
+    environment:
+      DOCKYARD_AGENT_ADDR: ":8090"
+      DOCKYARD_AGENT_TOKEN: ${DOCKYARD_AGENT_TOKEN:-change-me}
+    ports:
+      - "8090:8090"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - dockyard_platform
+
+networks:
+  dockyard_platform:
+    external: true

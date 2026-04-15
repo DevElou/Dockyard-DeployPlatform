@@ -1,0 +1,11 @@
+services:
+  registry:
+    image: registry:2
+    container_name: dockyard-registry
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - ${REGISTRY_DATA_DIR:-/opt/dockyard/registry}:/var/lib/registry

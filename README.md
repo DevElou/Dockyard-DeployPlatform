@@ -9,6 +9,8 @@ Plateforme privee de deploiement type "mini Vercel self-hosted", pensee pour une
 - [Guide architecture et Go](./docs/go-architecture-guide.md)
 - [Schéma SQL initial CockroachDB](./db/schema.sql)
 - [Contrats Go initiaux](./internal/ports/README.md)
+- [Infra layout](./infra/README.md)
+- [Guide de deploiement](./infra/DEPLOYMENT.md)
 
 ## Stack retenue
 
@@ -26,6 +28,7 @@ Plateforme privee de deploiement type "mini Vercel self-hosted", pensee pour une
 ```text
 dockyard/
   web/
+  build/
   cmd/
     control-plane-api/
     orchestrator-worker/
@@ -37,14 +40,17 @@ dockyard/
     adapters/
   db/
   docs/
+  infra/
 ```
 
 ## Commandes utiles
 
 ```bash
+make local-infra-up
 make run-api
 make run-worker
 make run-agent
+make web-dev
 make build
 make test
 ```
