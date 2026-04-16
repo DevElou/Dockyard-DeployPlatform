@@ -1,13 +1,13 @@
 # Dockyard Infra
 
-Cette arborescence separe clairement :
+Ce dossier regroupe l'infrastructure Dockyard, son layout, et la procedure de deploiement recommandee pour une V1 simple sur trois serveurs Docker.
 
-- `foundation` : briques d'infrastructure partagees
-- `platform` : services Dockyard
-- `agents` : agent de deploiement installe sur chaque host
-- `local` : stack de support pour le developpement local
+## Vue d'ensemble
 
-## Structure
+- `foundation/` : briques partagees qui ne sont pas gerees par Dockyard lui-meme
+- `platform/` : services Dockyard (`control-plane-api`, `orchestrator-worker`, `web`)
+- `agents/` : agent de deploiement a installer sur chaque host cible
+- `local/` : stack de support pour le developpement local
 
 ```text
 infra/
@@ -24,112 +24,218 @@ infra/
     docker-compose.yml
 ```
 
-## Regle de deploiement
+## Regles de deploiement
 
-- `foundation/` n'est pas gere par Dockyard lui-meme
-- `platform/` heberge Dockyard
-- `agents/` est deploye sur chaque serveur cible
+- `foundation/` reste hors du perimetre de gestion de Dockyard au demarrage
+- `platform/` heberge Dockyard lui-meme
+- `agents/` est deploye sur tous les serveurs qui doivent recevoir des applications
 - `local/` sert uniquement au developpement local
+- CockroachDB ne doit pas etre expose derriere Traefik
 
-## Ordre de demarrage
+## Repartition recommandee
 
-1. `foundation/cockroach`
-2. `foundation/redis`
-3. `foundation/registry`
-4. `foundation/traefik`
-5. `platform/dockyard`
-6. `agents/deploy-agent`
+### `server-1`
 
-## Commandes de deploiement
+- `cockroach-1`
+- `redis`
+- `registry`
+- `traefik`
+- `dockyard-control-plane-api`
+- `dockyard-web`
+- `deploy-agent`
 
-### 1. CockroachDB
+### `server-2`
 
-Sur `server-1` :
+- `cockroach-2`
+- `dockyard-orchestrator-worker`
+- `deploy-agent`
+
+### `server-3`
+
+- `cockroach-3`
+- `deploy-agent`
+
+Cette repartition garde la V1 simple :
+
+- la base reste distribuee sur trois hosts
+- Redis, Registry et Traefik restent en instance simple
+- l'API et le web sont regroupes sur un host
+- le worker est separe
+
+## Reseaux et stockage
+
+Reseaux Docker a creer selon les hosts concernes :
+
+- `dockyard_foundation`
+- `dockyard_edge`
+- `dockyard_platform`
+
+Volumes persistants recommandes :
+
+- CockroachDB : `/opt/dockyard/cockroach`
+- Redis : `/opt/dockyard/redis`
+- Registry : `/opt/dockyard/registry`
+- Traefik ACME : `/opt/dockyard/traefik/acme`
+
+## Ordre de bootstrap
+
+1. demarrer les trois noeuds CockroachDB
+2. initialiser le cluster
+3. creer la base `dockyard`
+4. deployer Redis
+5. deployer Registry
+6. deployer Traefik
+7. deployer l'API, le worker et le web
+8. deployer l'agent sur chaque host
+
+## Deploiement
+
+### `server-1`
+
+Creation des reseaux :
+
+```bash
+docker network create dockyard_foundation || true
+docker network create dockyard_edge || true
+docker network create dockyard_platform || true
+```
+
+CockroachDB :
 
 ```bash
 cd infra/foundation/cockroach
 docker compose -f server-1.compose.yml up -d
 ```
 
-Sur `server-2` :
-
-```bash
-cd infra/foundation/cockroach
-docker compose -f server-2.compose.yml up -d
-```
-
-Sur `server-3` :
-
-```bash
-cd infra/foundation/cockroach
-docker compose -f server-3.compose.yml up -d
-```
-
-Puis, une seule fois depuis `server-1` :
-
-```bash
-docker exec -it cockroach-1 cockroach init
-docker exec -it cockroach-1 cockroach sql -e "CREATE DATABASE dockyard;"
-```
-
-### 2. Redis
-
-Sur le host qui portera Redis :
+Redis :
 
 ```bash
 cd infra/foundation/redis
 docker compose -f compose.yml up -d
 ```
 
-### 3. Docker Registry
-
-Sur le host qui portera le registry :
+Registry :
 
 ```bash
 cd infra/foundation/registry
 docker compose -f compose.yml up -d
 ```
 
-### 4. Traefik
-
-Sur le host qui portera Traefik :
+Traefik :
 
 ```bash
-docker network create dockyard_edge
 cd infra/foundation/traefik
 docker compose -f compose.yml up -d
 ```
 
-### 5. Dockyard Platform
-
-Sur le host qui portera les services Dockyard :
+Dockyard web + API :
 
 ```bash
-docker network create dockyard_platform
-docker network create dockyard_edge
 cd infra/platform/dockyard
+docker compose -f compose.yml up -d --build control-plane-api web
+```
+
+Deploy agent :
+
+```bash
+cd infra/agents/deploy-agent
 docker compose -f compose.yml up -d --build
 ```
 
-### 6. Deploy Agent
+### `server-2`
 
-Sur chaque host cible :
+Creation des reseaux :
 
 ```bash
-docker network create dockyard_platform
+docker network create dockyard_foundation || true
+docker network create dockyard_platform || true
+```
+
+CockroachDB :
+
+```bash
+cd infra/foundation/cockroach
+docker compose -f server-2.compose.yml up -d
+```
+
+Dockyard worker :
+
+```bash
+cd infra/platform/dockyard
+docker compose -f compose.yml up -d --build orchestrator-worker
+```
+
+Deploy agent :
+
+```bash
+cd infra/agents/deploy-agent
+docker compose -f compose.yml up -d --build
+```
+
+### `server-3`
+
+Creation des reseaux :
+
+```bash
+docker network create dockyard_foundation || true
+docker network create dockyard_platform || true
+```
+
+CockroachDB :
+
+```bash
+cd infra/foundation/cockroach
+docker compose -f server-3.compose.yml up -d
+```
+
+Deploy agent :
+
+```bash
+cd infra/agents/deploy-agent
+docker compose -f compose.yml up -d --build
+```
+
+### Initialisation CockroachDB
+
+Une seule fois, apres le demarrage des trois noeuds, depuis `server-1` :
+
+```bash
+docker exec -it cockroach-1 cockroach init
+docker exec -it cockroach-1 cockroach sql -e "CREATE DATABASE dockyard;"
+```
+
+## Mises a jour
+
+Mettre a jour web + API sur `server-1` :
+
+```bash
+cd infra/platform/dockyard
+docker compose -f compose.yml up -d --build control-plane-api web
+```
+
+Mettre a jour le worker sur `server-2` :
+
+```bash
+cd infra/platform/dockyard
+docker compose -f compose.yml up -d --build orchestrator-worker
+```
+
+Mettre a jour un agent sur le host cible :
+
+```bash
 cd infra/agents/deploy-agent
 docker compose -f compose.yml up -d --build
 ```
 
 ## Developpement local
 
-Pour lancer les services de support :
+Lancer les services de support :
 
 ```bash
 make local-infra-up
 ```
 
-Pour lancer le backend Go en local :
+Lancer le backend Go en local :
 
 ```bash
 make run-api
@@ -137,7 +243,7 @@ make run-worker
 make run-agent
 ```
 
-Pour lancer le frontend :
+Lancer le frontend :
 
 ```bash
 make web-dev
