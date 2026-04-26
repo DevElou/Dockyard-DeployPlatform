@@ -52,9 +52,9 @@ La V1 est `Docker-first`, mais la logique metier ne depend pas directement de Do
                                          +----------+-----------+
                                                     |
                                                     v
-                                               +---------+
-                                               | Traefik |
-                                               +----+----+
+                                      +---------------------+
+                                      | Nginx Proxy Manager |
+                                      +----------+----------+
                                                     |
                                                     v
                                                 +--------+
@@ -123,8 +123,8 @@ Responsabilites :
 - exposition domaine -> service
 
 Choix V1 :
-- Traefik dedie a Dockyard
-- source de verite routee depuis Dockyard
+- Nginx Proxy Manager local comme point d'entree HTTP(S)
+- routes gerees par Dockyard via `RoutingProvider`
 
 ### `persistence`
 
@@ -178,7 +178,7 @@ Une release n'est jamais modifiee apres creation.
 
 1. creation d'une ressource `Domain`
 2. provision DNS via `DnsProvider`
-3. configuration Traefik via `RoutingProvider`
+3. configuration Nginx Proxy Manager via `RoutingProvider`
 4. health check externe eventuel
 
 ### Rollback
@@ -208,7 +208,7 @@ La V1 n'implemente qu'un seul backend concret pour la plupart de ces abstraction
 - `DockerRegistry`
 - `DockerRuntimeDriver`
 - `DuckDnsProvider`
-- `TraefikRoutingProvider`
+- `NginxProxyManagerRoutingProvider`
 
 ## Structure Go retenue
 
@@ -248,7 +248,7 @@ dockyard/
       redis/
       github/
       docker/
-      traefik/
+      nginxproxymanager/
       duckdns/
       agentclient/
   db/
@@ -263,7 +263,7 @@ dockyard/
 - `internal/ports` contient les interfaces.
 - `internal/adapters` contient les implementations concretes.
 
-Le domaine ne depend d'aucun SDK externe. Docker, GitHub, Traefik et DuckDNS restent strictement dans `adapters`.
+Le domaine ne depend d'aucun SDK externe. Docker, GitHub, Nginx Proxy Manager et DuckDNS restent strictement dans `adapters`.
 
 ## Ce qu'il faut coder d'abord
 
@@ -273,5 +273,5 @@ Premier slice vertical recommande :
 2. CRUD `Project`, `RuntimeTarget`, `Release`, `Deployment`, `Domain`
 3. agent minimal
 4. deployment manuel d'une image existante
-5. routage Traefik
+5. routage Nginx Proxy Manager
 6. ensuite seulement l'import GitHub et le build

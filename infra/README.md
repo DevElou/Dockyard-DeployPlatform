@@ -15,7 +15,7 @@ infra/
     cockroach/
     redis/
     registry/
-    traefik/
+    nginx-proxy-manager/
   platform/
     dockyard/
   agents/
@@ -30,7 +30,7 @@ infra/
 - `platform/` heberge Dockyard lui-meme
 - `agents/` est deploye sur tous les serveurs qui doivent recevoir des applications
 - `local/` sert uniquement au developpement local
-- CockroachDB ne doit pas etre expose derriere Traefik
+- CockroachDB ne doit pas etre expose derriere Nginx Proxy Manager
 
 ## Repartition recommandee
 
@@ -39,7 +39,7 @@ infra/
 - `cockroach-1`
 - `redis`
 - `registry`
-- `traefik`
+- `nginx-proxy-manager`
 - `dockyard-control-plane-api`
 - `dockyard-web`
 - `deploy-agent`
@@ -58,7 +58,7 @@ infra/
 Cette repartition garde la V1 simple :
 
 - la base reste distribuee sur trois hosts
-- Redis, Registry et Traefik restent en instance simple
+- Redis, Registry et Nginx Proxy Manager restent en instance simple
 - l'API et le web sont regroupes sur un host
 - le worker est separe
 
@@ -75,7 +75,8 @@ Volumes persistants recommandes :
 - CockroachDB : `/opt/dockyard/cockroach`
 - Redis : `/opt/dockyard/redis`
 - Registry : `/opt/dockyard/registry`
-- Traefik ACME : `/opt/dockyard/traefik/acme`
+- Nginx Proxy Manager data : `/opt/dockyard/nginx-proxy-manager/data`
+- Nginx Proxy Manager Let's Encrypt : `/opt/dockyard/nginx-proxy-manager/letsencrypt`
 
 ## Ordre de bootstrap
 
@@ -84,7 +85,7 @@ Volumes persistants recommandes :
 3. creer la base `dockyard`
 4. deployer Redis
 5. deployer Registry
-6. deployer Traefik
+6. deployer Nginx Proxy Manager
 7. deployer l'API, le worker et le web
 8. deployer l'agent sur chaque host
 
@@ -121,10 +122,10 @@ cd infra/foundation/registry
 docker compose -f compose.yml up -d
 ```
 
-Traefik :
+Nginx Proxy Manager :
 
 ```bash
-cd infra/foundation/traefik
+cd infra/foundation/nginx-proxy-manager
 docker compose -f compose.yml up -d
 ```
 

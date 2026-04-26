@@ -34,7 +34,7 @@ type ProjectService struct {
 	ContainerPort   int
 	HealthcheckPath string
 	HealthcheckPort int
-	TraefikEnabled  bool
+	RoutingEnabled  bool
 }
 
 func (p Project) Validate() error {

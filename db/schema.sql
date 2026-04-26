@@ -78,7 +78,7 @@ CREATE TABLE project_services (
   container_port INT NOT NULL,
   healthcheck_path STRING,
   healthcheck_port INT,
-  traefik_enabled BOOL NOT NULL DEFAULT true,
+  routing_enabled BOOL NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (project_id, name)
 );

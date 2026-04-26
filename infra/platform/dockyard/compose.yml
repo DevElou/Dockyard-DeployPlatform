@@ -15,11 +15,6 @@ services:
     networks:
       - dockyard_platform
       - dockyard_edge
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.dockyard-api.rule: Host(`${DOCKYARD_API_HOST:-api.dockyard.local}`)
-      traefik.http.routers.dockyard-api.entrypoints: web
-      traefik.http.services.dockyard-api.loadbalancer.server.port: "8080"
 
   orchestrator-worker:
     build:
@@ -48,11 +43,6 @@ services:
     networks:
       - dockyard_platform
       - dockyard_edge
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.dockyard-web.rule: Host(`${DOCKYARD_WEB_HOST:-dockyard.local}`)
-      traefik.http.routers.dockyard-web.entrypoints: web
-      traefik.http.services.dockyard-web.loadbalancer.server.port: "3000"
 
 networks:
   dockyard_platform:
