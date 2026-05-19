@@ -3,6 +3,7 @@ NPM ?= npm
 DOCKER_COMPOSE ?= docker-compose
 GOCACHE ?= $(CURDIR)/.gocache
 DATABASE_URL ?= postgresql://root@localhost:26257/dockyard?sslmode=disable
+MIGRATE_URL ?= cockroachdb://root@localhost:26257/dockyard?sslmode=disable
 MIGRATE ?= migrate
 
 .PHONY: run-api run-worker run-agent web-dev fmt build test local-infra-up local-infra-down local-infra-logs all db-create migrate-up migrate-down migrate-new test-integration
@@ -41,10 +42,10 @@ db-create:
 	cockroach sql --insecure --host=localhost:26257 -e "CREATE DATABASE IF NOT EXISTS dockyard;"
 
 migrate-up:
-	$(MIGRATE) -path db/migrations -database "$(DATABASE_URL)" up
+	$(MIGRATE) -path db/migrations -database "$(MIGRATE_URL)" up
 
 migrate-down:
-	$(MIGRATE) -path db/migrations -database "$(DATABASE_URL)" down 1
+	$(MIGRATE) -path db/migrations -database "$(MIGRATE_URL)" down 1
 
 migrate-new:
 	$(MIGRATE) create -ext sql -dir db/migrations -seq $(name)
