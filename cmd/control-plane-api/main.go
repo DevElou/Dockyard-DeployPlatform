@@ -1,28 +1,65 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/elouan/dockyard/internal/adapters/httpapi"
-	"github.com/elouan/dockyard/internal/adapters/memory"
+	"github.com/elouan/dockyard/internal/adapters/postgres"
+	deploymentapp "github.com/elouan/dockyard/internal/application/deployment"
+	domainsvc "github.com/elouan/dockyard/internal/application/domainsvc"
 	projectapp "github.com/elouan/dockyard/internal/application/project"
+	releaseapp "github.com/elouan/dockyard/internal/application/release"
+	runtimetargetapp "github.com/elouan/dockyard/internal/application/runtimetarget"
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	addr := getEnv("DOCKYARD_API_ADDR", ":8080")
 
-	projectRepository := memory.NewProjectRepository()
-	projectService := projectapp.NewService(projectRepository)
+	pgCfg, err := postgres.LoadConfigFromEnv()
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+
+	pool, err := postgres.NewPool(ctx, pgCfg)
+	if err != nil {
+		log.Fatalf("database: %v", err)
+	}
+	defer pool.Close()
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
-		ProjectService: projectService,
+		ProjectService:       projectapp.NewService(postgres.NewProjectRepository(pool)),
+		RuntimeTargetService: runtimetargetapp.NewService(postgres.NewRuntimeTargetRepository(pool)),
+		ReleaseService:       releaseapp.NewService(postgres.NewReleaseRepository(pool)),
+		DeploymentService:    deploymentapp.NewService(postgres.NewDeploymentRepository(pool)),
+		DomainService:        domainsvc.NewService(postgres.NewDomainRepository(pool)),
 	})
 
-	log.Printf("dockyard control-plane-api listening on %s", addr)
-	if err := http.ListenAndServe(addr, router); err != nil {
-		log.Fatal(err)
+	srv := &http.Server{Addr: addr, Handler: router}
+
+	go func() {
+		log.Printf("dockyard control-plane-api listening on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	stop()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("shutdown: %v", err)
 	}
 }
 

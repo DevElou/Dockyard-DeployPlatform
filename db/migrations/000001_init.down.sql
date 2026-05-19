@@ -1,0 +1,19 @@
+DROP INDEX IF EXISTS idx_domains_project_service_id;
+DROP INDEX IF EXISTS idx_build_jobs_project_created_at;
+DROP INDEX IF EXISTS idx_deployments_target_created_at;
+DROP INDEX IF EXISTS idx_deployments_project_created_at;
+DROP INDEX IF EXISTS idx_releases_project_created_at;
+
+DROP TABLE IF EXISTS deployment_steps;
+DROP TABLE IF EXISTS deployments;
+DROP TABLE IF EXISTS build_jobs;
+DROP TABLE IF EXISTS releases;
+DROP TABLE IF EXISTS domains;
+DROP TABLE IF EXISTS project_services;
+DROP TABLE IF EXISTS environment_variables;
+DROP TABLE IF EXISTS environment_sets;
+DROP TABLE IF EXISTS project_runtime_targets;
+DROP TABLE IF EXISTS runtime_targets;
+DROP TABLE IF EXISTS projects;
+DROP TABLE IF EXISTS github_installations;
+DROP TABLE IF EXISTS users;

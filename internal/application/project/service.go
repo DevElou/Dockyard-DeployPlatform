@@ -27,6 +27,10 @@ type CreateProjectInput struct {
 	BuildContext   string `json:"buildContext"`
 }
 
+type AddRuntimeTargetInput struct {
+	RuntimeTargetID string `json:"runtimeTargetId"`
+}
+
 func (s *Service) List(ctx context.Context) ([]domain.Project, error) {
 	return s.projects.List(ctx)
 }
@@ -48,6 +52,25 @@ func (s *Service) Create(ctx context.Context, input CreateProjectInput) (domain.
 	}
 
 	return s.projects.Create(ctx, project)
+}
+
+func (s *Service) GetByID(ctx context.Context, id string) (domain.Project, error) {
+	return s.projects.GetByID(ctx, id)
+}
+
+func (s *Service) Archive(ctx context.Context, id string) error {
+	return s.projects.Archive(ctx, id)
+}
+
+func (s *Service) ListRuntimeTargets(ctx context.Context, projectID string) ([]domain.RuntimeTarget, error) {
+	return s.projects.ListRuntimeTargets(ctx, projectID)
+}
+
+func (s *Service) AddRuntimeTarget(ctx context.Context, projectID string, input AddRuntimeTargetInput) error {
+	if strings.TrimSpace(input.RuntimeTargetID) == "" {
+		return nil
+	}
+	return s.projects.AddRuntimeTarget(ctx, projectID, strings.TrimSpace(input.RuntimeTargetID))
 }
 
 func defaultString(value string, fallback string) string {

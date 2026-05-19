@@ -1,5 +1,12 @@
 package domain
 
+type ProjectStatus string
+
+const (
+	ProjectStatusActive   ProjectStatus = "active"
+	ProjectStatusArchived ProjectStatus = "archived"
+)
+
 type RuntimeType string
 
 const (

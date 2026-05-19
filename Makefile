@@ -2,8 +2,10 @@ GO ?= go
 NPM ?= npm
 DOCKER_COMPOSE ?= docker-compose
 GOCACHE ?= $(CURDIR)/.gocache
+DATABASE_URL ?= postgresql://root@localhost:26257/dockyard?sslmode=disable
+MIGRATE ?= migrate
 
-.PHONY: run-api run-worker run-agent web-dev fmt build test local-infra-up local-infra-down local-infra-logs all
+.PHONY: run-api run-worker run-agent web-dev fmt build test local-infra-up local-infra-down local-infra-logs all db-create migrate-up migrate-down migrate-new test-integration
 
 run-api:
 	env GOCACHE=$(GOCACHE) $(GO) run ./cmd/control-plane-api
@@ -35,7 +37,22 @@ local-infra-down:
 local-infra-logs:
 	$(DOCKER_COMPOSE) -f infra/local/docker-compose.yml logs -f
 
-all: 
+db-create:
+	cockroach sql --insecure --host=localhost:26257 -e "CREATE DATABASE IF NOT EXISTS dockyard;"
+
+migrate-up:
+	$(MIGRATE) -path db/migrations -database "$(DATABASE_URL)" up
+
+migrate-down:
+	$(MIGRATE) -path db/migrations -database "$(DATABASE_URL)" down 1
+
+migrate-new:
+	$(MIGRATE) create -ext sql -dir db/migrations -seq $(name)
+
+test-integration:
+	env GOCACHE=$(GOCACHE) DOCKYARD_TEST_DSN=$(DATABASE_URL) $(GO) test -race -tags=integration ./internal/adapters/postgres/...
+
+all:
 	$(MAKE) fmt
 	$(MAKE) build
 	$(MAKE) test
