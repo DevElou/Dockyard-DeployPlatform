@@ -1,6 +1,6 @@
 # Déploiement Dockyard
 
-Ce guide couvre le déploiement de Dockyard sur trois serveurs Docker dans un homelab ESXi.
+Ce guide couvre le déploiement de Dockyard sur un homelab ESXi avec trois serveurs Docker.
 
 > **Nginx Proxy Manager** est une infrastructure existante — Dockyard ne le déploie pas.
 > Il sera utilisé automatiquement par Dockyard pour le routage HTTP(S) une fois
@@ -24,18 +24,16 @@ go install -tags 'cockroachdb' github.com/golang-migrate/migrate/v4/cmd/migrate@
 ## Répartition des services
 
 ```
-server-1  ─── CockroachDB (nœud 1)
+server-1  ─── CockroachDB (nœud unique)
            ── Redis
            ── Registry Docker privé
            ── control-plane-api   :8080
-           ── deploy-agent        :8090
-
-server-2  ─── CockroachDB (nœud 2)
            ── orchestrator-worker
            ── deploy-agent        :8090
 
-server-3  ─── CockroachDB (nœud 3)
-           ── deploy-agent        :8090
+server-2  ─── deploy-agent        :8090
+
+server-3  ─── deploy-agent        :8090
 
 (existant) ── Nginx Proxy Manager  — géré séparément, non déployé par Dockyard
 ```
@@ -73,55 +71,41 @@ openssl rand -hex 32
 
 ### Étape 1 — Réseaux Docker
 
-À créer sur **chaque serveur** avant de lancer quoi que ce soit :
+Sur **server-1** :
 
 ```bash
-# server-1
 docker network create dockyard_foundation || true
 docker network create dockyard_platform   || true
 docker network create dockyard_edge       || true
-
-# server-2 et server-3
-docker network create dockyard_foundation || true
-docker network create dockyard_platform   || true
 ```
 
 > `dockyard_edge` est le réseau partagé entre l'API et Nginx Proxy Manager.
 > Si NPM tourne déjà sur un réseau existant, adapter le nom dans
 > `infra/platform/dockyard/compose.yml`.
 
-### Étape 2 — CockroachDB
-
-Démarrer un nœud par serveur. Sur **chaque serveur**, exporter l'adresse annoncée :
+Sur **server-2 et server-3** :
 
 ```bash
-# server-1
-export COCKROACH_ADVERTISE_ADDR=server-1.local
-cd infra/foundation/cockroach
-docker compose --env-file ../../../.env -f server-1.compose.yml up -d
-
-# server-2
-export COCKROACH_ADVERTISE_ADDR=server-2.local
-docker compose --env-file ../../../.env -f server-2.compose.yml up -d
-
-# server-3
-export COCKROACH_ADVERTISE_ADDR=server-3.local
-docker compose --env-file ../../../.env -f server-3.compose.yml up -d
+docker network create dockyard_platform || true
 ```
 
-Initialiser le cluster — **une seule fois depuis server-1** :
+### Étape 2 — CockroachDB (single-node)
+
+Sur **server-1** uniquement :
 
 ```bash
-docker exec -it cockroach-1 cockroach init --insecure
-docker exec -it cockroach-1 cockroach sql --insecure \
+cd infra/foundation/cockroach
+docker compose --env-file ../../../.env -f single.compose.yml up -d
+```
+
+Créer la base de données :
+
+```bash
+docker exec -it cockroach cockroach sql --insecure \
   -e "CREATE DATABASE IF NOT EXISTS dockyard;"
 ```
 
-Vérifier que les trois nœuds sont actifs :
-```bash
-docker exec -it cockroach-1 cockroach node status --insecure
-# doit afficher 3 nœuds avec is_live=true
-```
+> En mode `start-single-node`, il n'y a pas de cluster à initialiser et pas de nœuds à joindre.
 
 ### Étape 3 — Redis et Registry (server-1)
 
@@ -152,21 +136,17 @@ migrate -path db/migrations \
         up
 ```
 
-### Étape 5 — Services Dockyard
+### Étape 5 — Services Dockyard (server-1)
 
-**server-1** — API :
+API + Worker sur **server-1** :
 ```bash
 cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build control-plane-api
+docker compose --env-file ../../../.env up -d --build
 ```
 
-**server-2** — Worker :
-```bash
-cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build orchestrator-worker
-```
+### Étape 6 — Agents
 
-**Chaque serveur** — Agent :
+Sur **chaque serveur** (server-1, server-2, server-3) :
 ```bash
 cd infra/agents/deploy-agent
 docker compose --env-file ../../../.env up -d --build
@@ -193,12 +173,9 @@ docker logs dockyard-deploy-agent -f
 ## Mises à jour
 
 ```bash
-# API (server-1)
+# API + Worker (server-1)
 cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build control-plane-api
-
-# Worker (server-2)
-docker compose --env-file ../../../.env up -d --build orchestrator-worker
+docker compose --env-file ../../../.env up -d --build
 
 # Agent sur un host cible
 cd infra/agents/deploy-agent
@@ -250,9 +227,6 @@ make test-integration
 
 **Le registry retourne une erreur lors du push**
 → Vérifier que `insecure-registries` est configuré dans `/etc/docker/daemon.json` sur tous les hosts.
-
-**CockroachDB : un nœud ne rejoint pas le cluster**
-→ Vérifier que `COCKROACH_JOIN` contient les bonnes adresses et que le port 26257 est ouvert entre les serveurs.
 
 **L'API ne répond pas derrière NPM**
 → Dans NPM, créer un proxy host pointant vers `server-1.local:8080`.
