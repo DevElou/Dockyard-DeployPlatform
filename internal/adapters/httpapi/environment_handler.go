@@ -80,7 +80,7 @@ func handleUpsertVariable(svc *envapp.Service) http.HandlerFunc {
 		}
 
 		if err := svc.UpsertVariable(r.Context(), envID, input); err != nil {
-			httpjson.Error(w, http.StatusBadRequest, "upsert_variable_failed", err.Error())
+			mapError(w, err)
 			return
 		}
 		httpjson.Write(w, http.StatusNoContent, nil)

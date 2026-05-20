@@ -56,19 +56,21 @@ func (w *DeployWorker) Run(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
+	var wg sync.WaitGroup
 	log.Println("deploy-worker: started")
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("deploy-worker: stopping")
+			log.Println("deploy-worker: stopping, draining in-flight deployments")
+			wg.Wait()
 			return
 		case <-ticker.C:
-			w.tick(ctx)
+			w.tick(ctx, &wg)
 		}
 	}
 }
 
-func (w *DeployWorker) tick(ctx context.Context) {
+func (w *DeployWorker) tick(ctx context.Context, wg *sync.WaitGroup) {
 	pending, err := w.deployments.ListByStatus(ctx, domain.DeploymentStatusPending)
 	if err != nil {
 		log.Printf("deploy-worker: list pending deployments: %v", err)
@@ -79,7 +81,9 @@ func (w *DeployWorker) tick(ctx context.Context) {
 		if _, loaded := w.inFlight.LoadOrStore(d.ID, struct{}{}); loaded {
 			continue
 		}
+		wg.Add(1)
 		go func(dep domain.Deployment) {
+			defer wg.Done()
 			defer w.inFlight.Delete(dep.ID)
 			w.processDeployment(ctx, dep)
 		}(d)
@@ -214,14 +218,9 @@ func (w *DeployWorker) resolveServiceSpec(ctx context.Context, d domain.Deployme
 	if d.ProjectServiceID != nil {
 		svc, err := w.projectServices.GetByID(ctx, *d.ProjectServiceID)
 		if err != nil {
-			return runtime.ServiceSpec{}, err
+			return runtime.ServiceSpec{}, fmt.Errorf("get service by id: %w", err)
 		}
-		return runtime.ServiceSpec{
-			Name:            svc.Name,
-			InternalPort:    svc.ContainerPort,
-			HealthcheckPath: svc.HealthcheckPath,
-			HealthcheckPort: svc.HealthcheckPort,
-		}, nil
+		return toServiceSpec(svc), nil
 	}
 
 	svc, err := w.projectServices.GetDefaultForProject(ctx, d.ProjectID)
@@ -229,14 +228,9 @@ func (w *DeployWorker) resolveServiceSpec(ctx context.Context, d domain.Deployme
 		if isNotFound(err) {
 			return runtime.ServiceSpec{}, nil
 		}
-		return runtime.ServiceSpec{}, err
+		return runtime.ServiceSpec{}, fmt.Errorf("get default service: %w", err)
 	}
-	return runtime.ServiceSpec{
-		Name:            svc.Name,
-		InternalPort:    svc.ContainerPort,
-		HealthcheckPath: svc.HealthcheckPath,
-		HealthcheckPort: svc.HealthcheckPort,
-	}, nil
+	return toServiceSpec(svc), nil
 }
 
 func (w *DeployWorker) resolveEnvVars(ctx context.Context, d domain.Deployment) ([]domain.EnvironmentVariable, error) {
@@ -249,12 +243,25 @@ func (w *DeployWorker) resolveEnvVars(ctx context.Context, d domain.Deployment) 
 			if isNotFound(err) {
 				return nil, nil
 			}
-			return nil, err
+			return nil, fmt.Errorf("get default environment set: %w", err)
 		}
 		setID = set.ID
 	}
 
-	return w.envVars.ListBySet(ctx, setID)
+	vars, err := w.envVars.ListBySet(ctx, setID)
+	if err != nil {
+		return nil, fmt.Errorf("list env vars for set %s: %w", setID, err)
+	}
+	return vars, nil
+}
+
+func toServiceSpec(svc domain.ProjectService) runtime.ServiceSpec {
+	return runtime.ServiceSpec{
+		Name:            svc.Name,
+		InternalPort:    svc.ContainerPort,
+		HealthcheckPath: svc.HealthcheckPath,
+		HealthcheckPort: svc.HealthcheckPort,
+	}
 }
 
 func isNotFound(err error) bool {

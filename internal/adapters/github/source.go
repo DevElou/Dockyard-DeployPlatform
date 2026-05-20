@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,17 +19,22 @@ import (
 	"github.com/elouan/dockyard/internal/ports/source"
 )
 
+// maxArchiveFileBytes is the per-entry size cap during tar extraction (500 MB).
+const maxArchiveFileBytes int64 = 500 << 20
+
 type SourceProvider struct {
-	token    string
-	projects repository.ProjectRepository
-	client   *http.Client
+	token         string
+	projects      repository.ProjectRepository
+	client        *http.Client // API calls (short timeout)
+	archiveClient *http.Client // tarball downloads (long timeout)
 }
 
 func NewSourceProvider(token string, projects repository.ProjectRepository) *SourceProvider {
 	return &SourceProvider{
-		token:    token,
-		projects: projects,
-		client:   &http.Client{Timeout: 15 * time.Second},
+		token:         token,
+		projects:      projects,
+		client:        &http.Client{Timeout: 15 * time.Second},
+		archiveClient: &http.Client{Timeout: 5 * time.Minute},
 	}
 }
 
@@ -98,8 +104,6 @@ func (p *SourceProvider) DownloadArchive(ctx context.Context, projectID string, 
 		url.PathEscape(project.GitHubRepo),
 		url.PathEscape(commitSHA))
 
-	// GitHub tarballs can redirect; use a client with a generous timeout.
-	dlClient := &http.Client{Timeout: 5 * time.Minute}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, archiveURL, nil)
 	if err != nil {
 		return fmt.Errorf("github: build archive request: %w", err)
@@ -108,7 +112,7 @@ func (p *SourceProvider) DownloadArchive(ctx context.Context, projectID string, 
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	resp, err := dlClient.Do(req)
+	resp, err := p.archiveClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("github: download archive: %w", err)
 	}
@@ -123,6 +127,8 @@ func (p *SourceProvider) DownloadArchive(ctx context.Context, projectID string, 
 
 // extractTarGz extracts a gzip-compressed tar stream into dir, stripping the
 // first path component (the "owner-repo-sha/" prefix that GitHub adds).
+// Symlinks and hard-links are rejected to prevent post-extraction traversal.
+// Each regular file is capped at maxArchiveFileBytes to prevent decompression bombs.
 func extractTarGz(r io.Reader, dir string) error {
 	gz, err := gzip.NewReader(r)
 	if err != nil {
@@ -130,17 +136,18 @@ func extractTarGz(r io.Reader, dir string) error {
 	}
 	defer gz.Close()
 
+	safeDir := filepath.Clean(dir) + string(os.PathSeparator)
+
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
 			return fmt.Errorf("github: read tar: %w", err)
 		}
 
-		// Strip the first component (e.g. "owner-repo-sha/").
 		stripped := stripFirstComponent(hdr.Name)
 		if stripped == "" {
 			continue
@@ -148,8 +155,7 @@ func extractTarGz(r io.Reader, dir string) error {
 
 		target := filepath.Join(dir, filepath.FromSlash(stripped))
 
-		// Guard against path traversal.
-		if !strings.HasPrefix(target, filepath.Clean(dir)+string(os.PathSeparator)) {
+		if !strings.HasPrefix(target, safeDir) {
 			return fmt.Errorf("github: unsafe path in archive: %s", hdr.Name)
 		}
 
@@ -158,20 +164,42 @@ func extractTarGz(r io.Reader, dir string) error {
 			if err := os.MkdirAll(target, 0o755); err != nil {
 				return fmt.Errorf("github: mkdir %s: %w", target, err)
 			}
+
 		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 				return fmt.Errorf("github: mkdir parent %s: %w", target, err)
 			}
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, hdr.FileInfo().Mode())
-			if err != nil {
-				return fmt.Errorf("github: create file %s: %w", target, err)
+			if err := writeFile(target, tr, hdr.FileInfo().Mode()); err != nil {
+				return err
 			}
-			if _, err := io.Copy(f, tr); err != nil { //nolint:gosec
-				f.Close()
-				return fmt.Errorf("github: write file %s: %w", target, err)
-			}
-			f.Close()
+
+		case tar.TypeSymlink, tar.TypeLink:
+			return fmt.Errorf("github: symlinks not permitted in archive: %s", hdr.Name)
+
+		default:
+			// Skip device files, FIFOs, etc.
 		}
+	}
+	return nil
+}
+
+func writeFile(target string, src io.Reader, mode os.FileMode) error {
+	f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+	if err != nil {
+		return fmt.Errorf("github: create file %s: %w", target, err)
+	}
+
+	// CopyN with maxArchiveFileBytes+1: if it returns nil, the file exceeded the limit.
+	_, copyErr := io.CopyN(f, src, maxArchiveFileBytes+1)
+	f.Close()
+
+	if copyErr == nil {
+		// Exactly maxArchiveFileBytes+1 bytes copied — file is too large.
+		os.Remove(target)
+		return fmt.Errorf("github: file %s exceeds %d byte limit", target, maxArchiveFileBytes)
+	}
+	if !errors.Is(copyErr, io.EOF) {
+		return fmt.Errorf("github: write file %s: %w", target, copyErr)
 	}
 	return nil
 }

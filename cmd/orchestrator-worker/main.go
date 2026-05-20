@@ -31,6 +31,8 @@ func main() {
 	}
 	defer pool.Close()
 
+	githubToken := mustEnv("DOCKYARD_GITHUB_TOKEN")
+	registryURL := mustEnv("DOCKYARD_REGISTRY_URL")
 	agentKey := getEnv("DOCKYARD_AGENT_KEY", "")
 
 	factory := func(target domain.RuntimeTarget) (agent.Client, error) {
@@ -41,8 +43,8 @@ func main() {
 	}
 
 	projectRepo := postgres.NewProjectRepository(pool)
-	src := github.NewSourceProvider(getEnv("DOCKYARD_GITHUB_TOKEN", ""), projectRepo)
-	builder := dockerregistry.NewBuilder(getEnv("DOCKYARD_REGISTRY_URL", ""))
+	src := github.NewSourceProvider(githubToken, projectRepo)
+	builder := dockerregistry.NewBuilder(registryURL)
 
 	buildWorker := NewBuildWorker(
 		postgres.NewReleaseRepository(pool),
@@ -70,6 +72,14 @@ func main() {
 
 	deployWorker.Run(ctx)
 	<-buildDone
+}
+
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("%s is required", key)
+	}
+	return v
 }
 
 func getEnv(key, fallback string) string {

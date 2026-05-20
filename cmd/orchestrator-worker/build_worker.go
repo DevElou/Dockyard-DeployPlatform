@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,19 +42,21 @@ func (w *BuildWorker) Run(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
+	var wg sync.WaitGroup
 	log.Println("build-worker: started")
 	for {
 		select {
 		case <-ctx.Done():
-			log.Println("build-worker: stopping")
+			log.Println("build-worker: stopping, draining in-flight builds")
+			wg.Wait()
 			return
 		case <-ticker.C:
-			w.tick(ctx)
+			w.tick(ctx, &wg)
 		}
 	}
 }
 
-func (w *BuildWorker) tick(ctx context.Context) {
+func (w *BuildWorker) tick(ctx context.Context, wg *sync.WaitGroup) {
 	pending, err := w.releases.ListByBuildStatus(ctx, domain.BuildStatusPending)
 	if err != nil {
 		log.Printf("build-worker: list pending releases: %v", err)
@@ -64,7 +67,9 @@ func (w *BuildWorker) tick(ctx context.Context) {
 		if _, loaded := w.inFlight.LoadOrStore(r.ID, struct{}{}); loaded {
 			continue
 		}
+		wg.Add(1)
 		go func(rel domain.Release) {
+			defer wg.Done()
 			defer w.inFlight.Delete(rel.ID)
 			w.processRelease(ctx, rel)
 		}(r)
@@ -98,7 +103,11 @@ func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.Bui
 		return registry.BuildResult{}, fmt.Errorf("get project: %w", err)
 	}
 
-	workDir, err := os.MkdirTemp("", fmt.Sprintf("dockyard-build-%s-*", r.ID[:8]))
+	prefix := r.ID
+	if len(prefix) > 8 {
+		prefix = prefix[:8]
+	}
+	workDir, err := os.MkdirTemp("", fmt.Sprintf("dockyard-build-%s-*", prefix))
 	if err != nil {
 		return registry.BuildResult{}, fmt.Errorf("create work dir: %w", err)
 	}
@@ -108,7 +117,10 @@ func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.Bui
 		return registry.BuildResult{}, fmt.Errorf("download archive: %w", err)
 	}
 
-	dockerfilePath := filepath.Join(workDir, project.DockerfilePath)
+	dockerfilePath, err := safeJoin(workDir, project.DockerfilePath)
+	if err != nil {
+		return registry.BuildResult{}, fmt.Errorf("dockerfile path: %w", err)
+	}
 
 	return w.builder.BuildAndPush(ctx, registry.BuildRequest{
 		ProjectID:      r.ProjectID,
@@ -117,6 +129,15 @@ func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.Bui
 		BuildContext:   workDir,
 		DockerfilePath: dockerfilePath,
 	})
+}
+
+// safeJoin joins base and rel, returning an error if the result escapes base.
+func safeJoin(base, rel string) (string, error) {
+	joined := filepath.Join(base, filepath.Clean(rel))
+	if !strings.HasPrefix(joined, filepath.Clean(base)+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path %q escapes work directory", rel)
+	}
+	return joined, nil
 }
 
 func (w *BuildWorker) failBuild(releaseID string) {

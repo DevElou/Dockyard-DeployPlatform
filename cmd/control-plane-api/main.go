@@ -38,7 +38,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	githubToken := getEnv("DOCKYARD_GITHUB_TOKEN", "")
+	githubToken := mustEnv("DOCKYARD_GITHUB_TOKEN")
 	projectRepo := postgres.NewProjectRepository(pool)
 	src := github.NewSourceProvider(githubToken, projectRepo)
 
@@ -72,10 +72,17 @@ func main() {
 	}
 }
 
-func getEnv(key string, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("%s is required", key)
 	}
-	return value
+	return v
+}
+
+func getEnv(key string, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
