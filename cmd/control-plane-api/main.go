@@ -14,7 +14,9 @@ import (
 	"github.com/elouan/dockyard/internal/adapters/postgres"
 	deploymentapp "github.com/elouan/dockyard/internal/application/deployment"
 	domainsvc "github.com/elouan/dockyard/internal/application/domainsvc"
+	envapp "github.com/elouan/dockyard/internal/application/environment"
 	projectapp "github.com/elouan/dockyard/internal/application/project"
+	projectserviceapp "github.com/elouan/dockyard/internal/application/projectservice"
 	releaseapp "github.com/elouan/dockyard/internal/application/release"
 	runtimetargetapp "github.com/elouan/dockyard/internal/application/runtimetarget"
 )
@@ -41,11 +43,13 @@ func main() {
 	src := github.NewSourceProvider(githubToken, projectRepo)
 
 	router := httpapi.NewRouter(httpapi.RouterDeps{
-		ProjectService:       projectapp.NewService(projectRepo),
-		RuntimeTargetService: runtimetargetapp.NewService(postgres.NewRuntimeTargetRepository(pool)),
-		ReleaseService:       releaseapp.NewService(postgres.NewReleaseRepository(pool), src),
-		DeploymentService:    deploymentapp.NewService(postgres.NewDeploymentRepository(pool)),
-		DomainService:        domainsvc.NewService(postgres.NewDomainRepository(pool)),
+		ProjectService:        projectapp.NewService(projectRepo),
+		RuntimeTargetService:  runtimetargetapp.NewService(postgres.NewRuntimeTargetRepository(pool)),
+		ReleaseService:        releaseapp.NewService(postgres.NewReleaseRepository(pool), src),
+		DeploymentService:     deploymentapp.NewService(postgres.NewDeploymentRepository(pool)),
+		DomainService:         domainsvc.NewService(postgres.NewDomainRepository(pool)),
+		ProjectServiceService: projectserviceapp.NewService(postgres.NewProjectServiceRepository(pool)),
+		EnvironmentService:    envapp.NewService(postgres.NewEnvironmentSetRepository(pool), postgres.NewEnvironmentVariableRepository(pool)),
 	})
 
 	srv := &http.Server{Addr: addr, Handler: router}

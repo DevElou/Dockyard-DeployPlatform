@@ -5,17 +5,21 @@ import (
 
 	deploymentapp "github.com/elouan/dockyard/internal/application/deployment"
 	domainsvc "github.com/elouan/dockyard/internal/application/domainsvc"
+	envapp "github.com/elouan/dockyard/internal/application/environment"
 	projectapp "github.com/elouan/dockyard/internal/application/project"
+	projectserviceapp "github.com/elouan/dockyard/internal/application/projectservice"
 	releaseapp "github.com/elouan/dockyard/internal/application/release"
 	runtimetargetapp "github.com/elouan/dockyard/internal/application/runtimetarget"
 )
 
 type RouterDeps struct {
-	ProjectService       *projectapp.Service
-	RuntimeTargetService *runtimetargetapp.Service
-	ReleaseService       *releaseapp.Service
-	DeploymentService    *deploymentapp.Service
-	DomainService        *domainsvc.Service
+	ProjectService        *projectapp.Service
+	RuntimeTargetService  *runtimetargetapp.Service
+	ReleaseService        *releaseapp.Service
+	DeploymentService     *deploymentapp.Service
+	DomainService         *domainsvc.Service
+	ProjectServiceService *projectserviceapp.Service
+	EnvironmentService    *envapp.Service
 }
 
 func NewRouter(deps RouterDeps) http.Handler {
@@ -53,6 +57,18 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.HandleFunc("POST /api/v1/projects/{projectId}/domains", handleCreateDomain(deps.DomainService))
 	mux.HandleFunc("GET /api/v1/projects/{projectId}/domains/{domainId}", handleGetDomain(deps.DomainService))
 	mux.HandleFunc("DELETE /api/v1/projects/{projectId}/domains/{domainId}", handleDeleteDomain(deps.DomainService))
+
+	// Project services
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/services", handleListServices(deps.ProjectServiceService))
+	mux.HandleFunc("POST /api/v1/projects/{projectId}/services", handleCreateService(deps.ProjectServiceService))
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/services/{serviceId}", handleGetService(deps.ProjectServiceService))
+
+	// Environment sets and variables
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/environments", handleListEnvironmentSets(deps.EnvironmentService))
+	mux.HandleFunc("POST /api/v1/projects/{projectId}/environments", handleCreateEnvironmentSet(deps.EnvironmentService))
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/environments/{envId}/variables", handleListVariables(deps.EnvironmentService))
+	mux.HandleFunc("PUT /api/v1/projects/{projectId}/environments/{envId}/variables", handleUpsertVariable(deps.EnvironmentService))
+	mux.HandleFunc("DELETE /api/v1/projects/{projectId}/environments/{envId}/variables/{varId}", handleDeleteVariable(deps.EnvironmentService))
 
 	return withLogging(mux)
 }
