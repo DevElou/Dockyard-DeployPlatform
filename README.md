@@ -2,24 +2,123 @@
 
 Dockyard est une plateforme privée de déploiement inspirée de Vercel, conçue pour piloter une infrastructure homelab ESXi. Elle fournit une interface unique pour connecter un projet GitHub, construire son image Docker, la déployer sur des serveurs Docker et gérer son exposition HTTP(S).
 
-## Architecture
+## Architecture générale
 
-```text
-Next.js Web UI
-    │
-Control Plane API (Go)       ← état, CRUD projets/releases/deployments
-    │
-CockroachDB + Redis
-    │
-Orchestrator Worker (Go)     ← poll pending deployments, dispatch agents
-    │
-Deploy Agents (Go)           ← HTTP server sur chaque Docker host
-    │
-Docker + Nginx Proxy Manager
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            Opérateur                                    │
+│                          (browser / curl)                               │
+└────────────────────────────────┬────────────────────────────────────────┘
+                                 │ HTTP REST
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       control-plane-api :8080                           │
+│                                                                         │
+│  POST /projects          POST /releases          POST /deployments      │
+│  POST /services          POST /environments      POST /domains          │
+└──────────────┬──────────────────────────────────────────────────────────┘
+               │ read / write
+               ▼
+┌──────────────────────────┐
+│     CockroachDB           │   (état canonique de toutes les ressources)
+└──────────────────────────┘
+               ▲
+               │ poll toutes les 5-10s
+               │
+┌──────────────┴───────────────────────────────────────────────────────────┐
+│                      orchestrator-worker                                  │
+│                                                                           │
+│   ┌──────────────────────────┐    ┌─────────────────────────────────┐    │
+│   │       BuildWorker        │    │         DeployWorker            │    │
+│   │                          │    │                                 │    │
+│   │  poll release.build_     │    │  poll deployment.status         │    │
+│   │  status = pending        │    │  = pending                      │    │
+│   │                          │    │                                 │    │
+│   │  1. GitHub API           │    │  1. vérifie release.build_      │    │
+│   │     resolve git ref      │    │     status = succeeded          │    │
+│   │  2. télécharge tarball   │    │  2. charge ProjectService +     │    │
+│   │  3. docker build + push  │    │     env vars                    │    │
+│   │  4. stocke image digest  │    │  3. envoie DeploymentSpec       │    │
+│   └──────────┬───────────────┘    └─────────────┬───────────────────┘    │
+└──────────────┼────────────────────────────────────┼─────────────────────┘
+               │                                    │ HTTP POST /deployments
+               │ docker build / push                ▼
+               ▼                    ┌───────────────────────────────────────┐
+┌─────────────────────┐             │          deploy-agent :8090           │
+│   Docker Registry   │             │      (un par serveur Docker host)     │
+│   (privé, local)    │             │                                       │
+└─────────────────────┘             │  POST /deployments     → lance        │
+                                    │  GET  /deployments/{id}→ poll santé   │
+                                    │  DELETE /deployments/{id}→ stop       │
+                                    └──────────────┬────────────────────────┘
+                                                   │ docker pull / run / ps
+                                                   ▼
+                                    ┌──────────────────────────────────────┐
+                                    │          Docker daemon               │
+                                    │    (container applicatif en cours)   │
+                                    └──────────────────────────────────────┘
 ```
 
-La logique métier reste découplée des outils concrets via des interfaces de ports.
-Docker, GitHub, le registry et le reverse proxy sont tous derrière des interfaces permutables.
+## Pipeline Build
+
+```
+Opérateur                 control-plane-api         orchestrator-worker         GitHub / Registry
+    │                            │                         │                          │
+    │  POST /releases            │                         │                          │
+    │  { version, gitRef }       │                         │                          │
+    │ ─────────────────────────► │                         │                          │
+    │                            │  GET /repos/.../commits │                          │
+    │                            │ ───────────────────────────────────────────────►  │
+    │                            │  ◄─────────────────── commitSHA ────────────────  │
+    │                            │                         │                          │
+    │                            │  INSERT release         │                          │
+    │                            │  build_status=pending   │                          │
+    │  ◄── 201 { id, status:pending } ──                  │                          │
+    │                            │                         │                          │
+    │  (poll GET /releases/{id}) │  ◄── poll ─────────────┤                          │
+    │                            │                         │  GET /tarball/{sha}      │
+    │                            │                         │ ────────────────────────►│
+    │                            │                         │  ◄── archive.tar.gz ──── │
+    │                            │                         │                          │
+    │                            │                         │  docker build + push     │
+    │                            │                         │ ────────────────────────►│
+    │                            │                         │  ◄── image digest ─────  │
+    │                            │                         │                          │
+    │                            │  UPDATE release         │                          │
+    │                            │  build_status=succeeded │                          │
+    │  ◄── status: succeeded ────┤◄────────────────────── │                          │
+```
+
+## Pipeline Deploy
+
+```
+Opérateur           control-plane-api      orchestrator-worker       deploy-agent       Docker
+    │                       │                       │                      │               │
+    │  POST /deployments     │                       │                      │               │
+    │  { releaseId, targetId}│                       │                      │               │
+    │ ──────────────────────►│                       │                      │               │
+    │                        │  INSERT deployment    │                      │               │
+    │                        │  status=pending       │                      │               │
+    │  ◄── 201 { id } ───────│                       │                      │               │
+    │                        │                       │                      │               │
+    │  (poll GET /deployments/{id})  ◄── poll ───────┤                      │               │
+    │                        │                       │  vérifie             │               │
+    │                        │                       │  buildStatus=succeeded               │
+    │                        │                       │  charge service + env│               │
+    │                        │                       │                      │               │
+    │                        │                       │  POST /deployments   │               │
+    │                        │                       │  { DeploymentSpec }  │               │
+    │                        │                       │ ────────────────────►│               │
+    │                        │                       │                      │  docker pull  │
+    │                        │                       │                      │  docker run   │
+    │                        │                       │                      │ ─────────────►│
+    │                        │                       │  GET /deployments/id │               │
+    │                        │                       │ ────────────────────►│               │
+    │                        │                       │  ◄── status: healthy │               │
+    │                        │                       │                      │               │
+    │                        │  UPDATE status=healthy│                      │               │
+    │  ◄── status: healthy ──│◄──────────────────────┤                      │               │
+```
 
 ## Structure du projet
 
@@ -101,22 +200,22 @@ make test-integration   # requiert DOCKYARD_TEST_DSN ou l'infra locale up
 
 ### Implémenté
 
-- [x] Domaine métier complet : `Project`, `Release`, `Deployment`, `RuntimeTarget`, `Domain`
-- [x] API HTTP CRUD pour toutes les ressources
+- [x] Domaine métier complet : `Project`, `Release`, `Deployment`, `RuntimeTarget`, `Domain`, `ProjectService`, `EnvironmentSet`, `EnvironmentVariable`
+- [x] API HTTP CRUD pour toutes les ressources (projets, releases, déploiements, services, environnements, domaines)
 - [x] Adapters Postgres (CockroachDB) pour tous les repositories
 - [x] Migrations SQL (golang-migrate)
 - [x] Tests d'intégration Postgres (race-free)
-- [x] GitHub source adapter — résolution de git ref via API v3
+- [x] GitHub source adapter — résolution git ref + téléchargement d'archive tarball
 - [x] Docker runtime driver — cycle de vie des containers via CLI
 - [x] Docker registry builder — build + push d'images via CLI
 - [x] Deploy-agent HTTP server — POST/GET/DELETE `/deployments/{id}`, auth, graceful shutdown
 - [x] HTTP agent.Client — utilisé par l'orchestrator pour parler aux agents
-- [x] Orchestrator worker — polling loop, dispatch, poll santé, mise à jour statut
+- [x] BuildWorker — pipeline async build : poll pending releases → download → build → push → digest
+- [x] DeployWorker — pipeline async deploy : poll pending deployments → DeploymentSpec complet (service + env vars) → dispatch agent → poll santé
+- [x] `docs/FRONTEND.md` — spec complète de l'interface web
 
 ### Prochaines étapes
 
-- [ ] Exposer `project_services` et `environment_variables` dans le DeploymentSpec
 - [ ] Nginx Proxy Manager adapter (`routing.Provider`)
 - [ ] DuckDNS adapter (`dns.Provider`)
-- [ ] Interface web Next.js
-- [ ] Build pipeline dans l'orchestrator (trigger sur `release.build_status = pending`)
+- [ ] Interface web (voir `docs/FRONTEND.md`)
