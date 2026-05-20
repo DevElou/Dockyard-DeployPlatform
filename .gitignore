@@ -3,3 +3,7 @@ bin
 dist
 web/node_modules
 web/.next
+.env
+control-plane-api
+orchestrator-worker
+deploy-agent
