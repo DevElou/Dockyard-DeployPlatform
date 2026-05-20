@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/agent"
 	"github.com/elouan/dockyard/internal/ports/repository"
+	"github.com/elouan/dockyard/internal/ports/routing"
 	"github.com/elouan/dockyard/internal/ports/runtime"
 )
 
@@ -26,6 +28,8 @@ type DeployWorker struct {
 	projectServices repository.ProjectServiceRepository
 	envSets         repository.EnvironmentSetRepository
 	envVars         repository.EnvironmentVariableRepository
+	domains         repository.DomainRepository
+	routing         routing.Provider
 	agentClients    AgentClientFactory
 	inFlight        sync.Map // deploymentID → struct{}
 }
@@ -38,6 +42,8 @@ func NewDeployWorker(
 	projectServices repository.ProjectServiceRepository,
 	envSets repository.EnvironmentSetRepository,
 	envVars repository.EnvironmentVariableRepository,
+	domains repository.DomainRepository,
+	routingProvider routing.Provider,
 	factory AgentClientFactory,
 ) *DeployWorker {
 	return &DeployWorker{
@@ -48,6 +54,8 @@ func NewDeployWorker(
 		projectServices: projectServices,
 		envSets:         envSets,
 		envVars:         envVars,
+		domains:         domains,
+		routing:         routingProvider,
 		agentClients:    factory,
 	}
 }
@@ -133,10 +141,12 @@ func (w *DeployWorker) processDeployment(ctx context.Context, d domain.Deploymen
 		return
 	}
 
-	w.waitForCompletion(ctx, d.ID, agentClient)
+	if w.waitForCompletion(ctx, d.ID, agentClient) {
+		w.configureRouting(ctx, d, target)
+	}
 }
 
-func (w *DeployWorker) waitForCompletion(ctx context.Context, deploymentID string, agentClient agent.Client) {
+func (w *DeployWorker) waitForCompletion(ctx context.Context, deploymentID string, agentClient agent.Client) bool {
 	pollCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
 
@@ -148,7 +158,7 @@ func (w *DeployWorker) waitForCompletion(ctx context.Context, deploymentID strin
 		case <-pollCtx.Done():
 			log.Printf("deploy-worker: timeout waiting for deployment %s: %v", deploymentID, pollCtx.Err())
 			w.fail(deploymentID)
-			return
+			return false
 		case <-ticker.C:
 			statusResp, err := agentClient.GetStatus(pollCtx, deploymentID)
 			if err != nil {
@@ -163,14 +173,71 @@ func (w *DeployWorker) waitForCompletion(ctx context.Context, deploymentID strin
 					log.Printf("deploy-worker: persist healthy status for %s: %v", deploymentID, err)
 				}
 				log.Printf("deploy-worker: deployment %s is healthy", deploymentID)
-				return
+				return true
 			case domain.DeploymentStatusFailed:
 				log.Printf("deploy-worker: deployment %s failed: %s", deploymentID, statusResp.Result.Message)
 				w.fail(deploymentID)
-				return
+				return false
 			}
 		}
 	}
+}
+
+func (w *DeployWorker) configureRouting(ctx context.Context, d domain.Deployment, target domain.RuntimeTarget) {
+	svc, err := w.resolveService(ctx, d)
+	if err != nil {
+		log.Printf("deploy-worker: routing: resolve service for deployment %s: %v", d.ID, err)
+		return
+	}
+	if svc == nil || !svc.RoutingEnabled || svc.ContainerPort == 0 {
+		return
+	}
+
+	u, err := url.Parse(target.Endpoint)
+	if err != nil || u.Hostname() == "" {
+		log.Printf("deploy-worker: routing: parse endpoint %q: %v", target.Endpoint, err)
+		return
+	}
+	forwardHost := u.Hostname()
+
+	domains, err := w.domains.ListByProjectService(ctx, svc.ID)
+	if err != nil {
+		log.Printf("deploy-worker: routing: list domains for service %s: %v", svc.ID, err)
+		return
+	}
+
+	for _, dom := range domains {
+		req := routing.RouteRequest{
+			Hostname:    dom.Hostname,
+			ForwardHost: forwardHost,
+			TargetPort:  svc.ContainerPort,
+			TLS:         dom.TLSEnabled,
+		}
+		if err := w.routing.EnsureRoute(req); err != nil {
+			log.Printf("deploy-worker: routing: ensure route %s: %v", dom.Hostname, err)
+			_ = w.domains.UpdateStatus(ctx, dom.ID, domain.DomainStatusFailed)
+		} else {
+			_ = w.domains.UpdateStatus(ctx, dom.ID, domain.DomainStatusReady)
+		}
+	}
+}
+
+func (w *DeployWorker) resolveService(ctx context.Context, d domain.Deployment) (*domain.ProjectService, error) {
+	if d.ProjectServiceID != nil {
+		svc, err := w.projectServices.GetByID(ctx, *d.ProjectServiceID)
+		if err != nil {
+			return nil, err
+		}
+		return &svc, nil
+	}
+	svc, err := w.projectServices.GetDefaultForProject(ctx, d.ProjectID)
+	if err != nil {
+		if isNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &svc, nil
 }
 
 func (w *DeployWorker) buildSpec(ctx context.Context, d domain.Deployment) (runtime.DeploymentSpec, error) {
