@@ -72,7 +72,7 @@ Les briques partagees sont :
 - CockroachDB : source de verite metier
 - Redis : jobs et etat transitoire
 - Registry Docker : artefacts
-- Traefik : routage
+- Nginx Proxy Manager : routage
 - DuckDNS : DNS en V1
 
 ## 2. Pourquoi cette architecture
@@ -139,7 +139,7 @@ Ici vivent :
 - les enums metier
 - les invariants simples
 
-Le domaine ne depend pas de PostgreSQL, Docker, GitHub, Redis ou Traefik.
+Le domaine ne depend pas de PostgreSQL, Docker, GitHub, Redis ou Nginx Proxy Manager.
 
 Si un fichier du domaine commence a importer un SDK Docker, c'est un mauvais signe.
 
@@ -314,7 +314,7 @@ Il fournit :
 - un `orchestrator-worker` minimal
 - un `deploy-agent` minimal
 - des interfaces de ports
-- un repository in-memory temporaire pour l'API
+- des repositories Postgres pour l'etat canonique
 - un frontend Next.js minimal
 
 ## 8. Ce qui viendra ensuite
@@ -325,7 +325,7 @@ L'ordre conseille est :
 2. repositories SQL
 3. use cases `projects`, `runtime_targets`, `releases`, `deployments`, `domains`
 4. agent Docker reel
-5. routing Traefik
+5. routing Nginx Proxy Manager
 6. build pipeline GitHub
 
 ## 9. Regles a garder en tete

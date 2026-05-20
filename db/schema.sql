@@ -78,7 +78,7 @@ CREATE TABLE project_services (
   container_port INT NOT NULL,
   healthcheck_path STRING,
   healthcheck_port INT,
-  traefik_enabled BOOL NOT NULL DEFAULT true,
+  routing_enabled BOOL NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (project_id, name)
 );
@@ -90,9 +90,9 @@ CREATE TABLE releases (
   source_type STRING NOT NULL DEFAULT 'github',
   git_sha STRING NOT NULL,
   git_ref STRING NOT NULL,
-  image_repository STRING NOT NULL,
-  image_tag STRING NOT NULL,
-  image_digest STRING NOT NULL,
+  image_repository STRING,
+  image_tag STRING,
+  image_digest STRING,
   build_status STRING NOT NULL,
   created_by_user_id UUID REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

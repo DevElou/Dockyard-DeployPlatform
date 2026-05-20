@@ -38,7 +38,7 @@ Choix techniques :
 - base principale : CockroachDB
 - queue : Redis + asynq
 - runtime V1 : Docker
-- edge : Traefik
+- edge : Nginx Proxy Manager
 - registry : Docker Registry prive
 - source provider V1 : GitHub
 - DNS provider V1 : DuckDNS
@@ -65,10 +65,12 @@ Choix techniques :
 - facilite la transition vers d'autres runtimes
 - implementation naturelle en Go avec un binaire simple
 
-### Pourquoi Traefik
+### Pourquoi Nginx Proxy Manager
 
-- integration dynamique avec l'ecosysteme Docker
-- gestion TLS et routage plus directe que NGINX Proxy Manager pour ce cas
+- deja adapte a une infrastructure personnelle ou homelab
+- interface d'administration utile pendant la V1
+- API exploitable par Dockyard pour creer et mettre a jour les proxy hosts
+- gestion TLS integree sans imposer un routage par labels Docker
 
 ### Pourquoi CockroachDB
 

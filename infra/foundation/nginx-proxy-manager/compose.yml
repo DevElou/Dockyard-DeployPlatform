@@ -1,0 +1,18 @@
+services:
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: dockyard-nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - ${NPM_DATA_DIR:-/opt/dockyard/nginx-proxy-manager/data}:/data
+      - ${NPM_LETSENCRYPT_DIR:-/opt/dockyard/nginx-proxy-manager/letsencrypt}:/etc/letsencrypt
+    networks:
+      - dockyard_edge
+
+networks:
+  dockyard_edge:
+    external: true

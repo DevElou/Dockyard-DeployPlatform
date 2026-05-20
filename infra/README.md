@@ -1,11 +1,11 @@
 # Dockyard Infra
 
-Ce dossier regroupe l'infrastructure Dockyard, son layout, et la procedure de deploiement recommandee pour une V1 simple sur trois serveurs Docker.
+Ce dossier regroupe l'infrastructure Dockyard, son layout, et la procedure de deploiement recommandee.
 
 ## Vue d'ensemble
 
 - `foundation/` : briques partagees qui ne sont pas gerees par Dockyard lui-meme
-- `platform/` : services Dockyard (`control-plane-api`, `orchestrator-worker`, `web`)
+- `platform/` : services Dockyard (`control-plane-api`, `orchestrator-worker`)
 - `agents/` : agent de deploiement a installer sur chaque host cible
 - `local/` : stack de support pour le developpement local
 
@@ -15,7 +15,6 @@ infra/
     cockroach/
     redis/
     registry/
-    traefik/
   platform/
     dockyard/
   agents/
@@ -30,63 +29,50 @@ infra/
 - `platform/` heberge Dockyard lui-meme
 - `agents/` est deploye sur tous les serveurs qui doivent recevoir des applications
 - `local/` sert uniquement au developpement local
-- CockroachDB ne doit pas etre expose derriere Traefik
+- CockroachDB ne doit pas etre expose derriere Nginx Proxy Manager
+- Nginx Proxy Manager est une infrastructure existante, non deployee par Dockyard
 
-## Repartition recommandee
+## Repartition
 
-### `server-1`
+### `server-1` — Control plane complet
 
-- `cockroach-1`
+- `cockroach` (noeud unique, `start-single-node`)
 - `redis`
-- `registry`
-- `traefik`
-- `dockyard-control-plane-api`
-- `dockyard-web`
-- `deploy-agent`
-
-### `server-2`
-
-- `cockroach-2`
+- `registry` (Docker registry prive)
+- `dockyard-control-plane-api` :8080
 - `dockyard-orchestrator-worker`
-- `deploy-agent`
+- `deploy-agent` :8090
 
-### `server-3`
+### `server-2` et `server-3` — Agents uniquement
 
-- `cockroach-3`
-- `deploy-agent`
-
-Cette repartition garde la V1 simple :
-
-- la base reste distribuee sur trois hosts
-- Redis, Registry et Traefik restent en instance simple
-- l'API et le web sont regroupes sur un host
-- le worker est separe
+- `deploy-agent` :8090
 
 ## Reseaux et stockage
 
-Reseaux Docker a creer selon les hosts concernes :
+Reseaux Docker a creer sur `server-1` :
 
 - `dockyard_foundation`
 - `dockyard_edge`
 - `dockyard_platform`
 
-Volumes persistants recommandes :
+Reseaux Docker a creer sur `server-2` et `server-3` :
+
+- `dockyard_platform`
+
+Volumes persistants :
 
 - CockroachDB : `/opt/dockyard/cockroach`
 - Redis : `/opt/dockyard/redis`
 - Registry : `/opt/dockyard/registry`
-- Traefik ACME : `/opt/dockyard/traefik/acme`
 
 ## Ordre de bootstrap
 
-1. demarrer les trois noeuds CockroachDB
-2. initialiser le cluster
-3. creer la base `dockyard`
-4. deployer Redis
-5. deployer Registry
-6. deployer Traefik
-7. deployer l'API, le worker et le web
-8. deployer l'agent sur chaque host
+1. demarrer CockroachDB en mode single-node (pas d'init cluster requis)
+2. creer la base `dockyard` et appliquer les migrations
+3. deployer Redis
+4. deployer Registry
+5. deployer l'API et le worker
+6. deployer l'agent sur chaque host cible
 
 ## Deploiement
 
@@ -100,131 +86,78 @@ docker network create dockyard_edge || true
 docker network create dockyard_platform || true
 ```
 
-CockroachDB :
+CockroachDB (single-node, pas de cluster) :
 
 ```bash
 cd infra/foundation/cockroach
-docker compose -f server-1.compose.yml up -d
+docker compose --env-file ../../../.env -f single.compose.yml up -d
+docker exec -it cockroach cockroach sql --insecure \
+  -e "CREATE DATABASE IF NOT EXISTS dockyard;"
 ```
 
 Redis :
 
 ```bash
 cd infra/foundation/redis
-docker compose -f compose.yml up -d
+docker compose --env-file ../../../.env up -d
 ```
 
 Registry :
 
 ```bash
 cd infra/foundation/registry
-docker compose -f compose.yml up -d
+docker compose --env-file ../../../.env up -d
 ```
 
-Traefik :
+Migrations :
 
 ```bash
-cd infra/foundation/traefik
-docker compose -f compose.yml up -d
+make migrate-up
 ```
 
-Dockyard web + API :
+Dockyard API + worker :
 
 ```bash
 cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build control-plane-api web
+docker compose --env-file ../../../.env up -d --build
 ```
 
 Deploy agent :
 
 ```bash
 cd infra/agents/deploy-agent
-docker compose -f compose.yml up -d --build
+docker compose --env-file ../../../.env up -d --build
 ```
 
-### `server-2`
+### `server-2` et `server-3` — Agent uniquement
 
 Creation des reseaux :
 
 ```bash
-docker network create dockyard_foundation || true
 docker network create dockyard_platform || true
-```
-
-CockroachDB :
-
-```bash
-cd infra/foundation/cockroach
-docker compose -f server-2.compose.yml up -d
-```
-
-Dockyard worker :
-
-```bash
-cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build orchestrator-worker
 ```
 
 Deploy agent :
 
 ```bash
 cd infra/agents/deploy-agent
-docker compose -f compose.yml up -d --build
-```
-
-### `server-3`
-
-Creation des reseaux :
-
-```bash
-docker network create dockyard_foundation || true
-docker network create dockyard_platform || true
-```
-
-CockroachDB :
-
-```bash
-cd infra/foundation/cockroach
-docker compose -f server-3.compose.yml up -d
-```
-
-Deploy agent :
-
-```bash
-cd infra/agents/deploy-agent
-docker compose -f compose.yml up -d --build
-```
-
-### Initialisation CockroachDB
-
-Une seule fois, apres le demarrage des trois noeuds, depuis `server-1` :
-
-```bash
-docker exec -it cockroach-1 cockroach init
-docker exec -it cockroach-1 cockroach sql -e "CREATE DATABASE dockyard;"
+docker compose --env-file ../../../.env up -d --build
 ```
 
 ## Mises a jour
 
-Mettre a jour web + API sur `server-1` :
+Mettre a jour API + worker sur `server-1` :
 
 ```bash
 cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build control-plane-api web
+docker compose --env-file ../../../.env up -d --build
 ```
 
-Mettre a jour le worker sur `server-2` :
-
-```bash
-cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build orchestrator-worker
-```
-
-Mettre a jour un agent sur le host cible :
+Mettre a jour un agent :
 
 ```bash
 cd infra/agents/deploy-agent
-docker compose -f compose.yml up -d --build
+docker compose --env-file ../../../.env up -d --build
 ```
 
 ## Developpement local
@@ -241,10 +174,4 @@ Lancer le backend Go en local :
 make run-api
 make run-worker
 make run-agent
-```
-
-Lancer le frontend :
-
-```bash
-make web-dev
 ```

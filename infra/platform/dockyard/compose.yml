@@ -9,17 +9,12 @@ services:
     environment:
       DOCKYARD_API_ADDR: ":8080"
       DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:-postgresql://root@server-1.local:26257/dockyard?sslmode=disable}
-      DOCKYARD_REDIS_ADDR: ${DOCKYARD_REDIS_ADDR:-server-1.local:6379}
+      DOCKYARD_GITHUB_TOKEN: ${DOCKYARD_GITHUB_TOKEN:?DOCKYARD_GITHUB_TOKEN is required}
     ports:
       - "8080:8080"
     networks:
       - dockyard_platform
       - dockyard_edge
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.dockyard-api.rule: Host(`${DOCKYARD_API_HOST:-api.dockyard.local}`)
-      traefik.http.routers.dockyard-api.entrypoints: web
-      traefik.http.services.dockyard-api.loadbalancer.server.port: "8080"
 
   orchestrator-worker:
     build:
@@ -30,7 +25,11 @@ services:
     restart: unless-stopped
     environment:
       DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:-postgresql://root@server-1.local:26257/dockyard?sslmode=disable}
-      DOCKYARD_REDIS_ADDR: ${DOCKYARD_REDIS_ADDR:-server-1.local:6379}
+      DOCKYARD_GITHUB_TOKEN: ${DOCKYARD_GITHUB_TOKEN:?DOCKYARD_GITHUB_TOKEN is required}
+      DOCKYARD_REGISTRY_URL: ${DOCKYARD_REGISTRY_URL:?DOCKYARD_REGISTRY_URL is required}
+      DOCKYARD_AGENT_KEY: ${DOCKYARD_AGENT_KEY:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - dockyard_platform
 
@@ -48,11 +47,6 @@ services:
     networks:
       - dockyard_platform
       - dockyard_edge
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.dockyard-web.rule: Host(`${DOCKYARD_WEB_HOST:-dockyard.local}`)
-      traefik.http.routers.dockyard-web.entrypoints: web
-      traefik.http.services.dockyard-web.loadbalancer.server.port: "3000"
 
 networks:
   dockyard_platform:

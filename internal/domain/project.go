@@ -9,6 +9,7 @@ type Project struct {
 	ID                   string
 	Slug                 string
 	Name                 string
+	Status               ProjectStatus
 	GitHubOwner          string
 	GitHubRepo           string
 	DefaultBranch        string
@@ -19,12 +20,15 @@ type Project struct {
 }
 
 type RuntimeTarget struct {
-	ID          string
-	Slug        string
-	Name        string
-	RuntimeType RuntimeType
-	Endpoint    string
-	Enabled     bool
+	ID           string
+	Slug         string
+	Name         string
+	RuntimeType  RuntimeType
+	Endpoint     string
+	AgentKeyHash string
+	ServerGroup  *string
+	Region       *string
+	Enabled      bool
 }
 
 type ProjectService struct {
@@ -34,7 +38,7 @@ type ProjectService struct {
 	ContainerPort   int
 	HealthcheckPath string
 	HealthcheckPort int
-	TraefikEnabled  bool
+	RoutingEnabled  bool
 }
 
 func (p Project) Validate() error {
@@ -49,6 +53,22 @@ func (p Project) Validate() error {
 	}
 	if strings.TrimSpace(p.GitHubRepo) == "" {
 		return errors.New("github repo is required")
+	}
+	return nil
+}
+
+func (rt RuntimeTarget) Validate() error {
+	if strings.TrimSpace(rt.Slug) == "" {
+		return errors.New("runtime target slug is required")
+	}
+	if strings.TrimSpace(rt.Name) == "" {
+		return errors.New("runtime target name is required")
+	}
+	if strings.TrimSpace(rt.Endpoint) == "" {
+		return errors.New("runtime target endpoint is required")
+	}
+	if strings.TrimSpace(rt.AgentKeyHash) == "" {
+		return errors.New("runtime target agent key hash is required")
 	}
 	return nil
 }

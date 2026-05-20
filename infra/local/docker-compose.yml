@@ -3,10 +3,10 @@ services:
     image: cockroachdb/cockroach:v25.3.3
     container_name: dockyard-local-cockroach
     restart: unless-stopped
-    command: start-single-node --insecure --listen-addr=0.0.0.0:26257 --http-addr=0.0.0.0:8080
+    command: start-single-node --insecure --listen-addr=:26257 --http-addr=:8080
     ports:
       - "26257:26257"
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - cockroach-data:/cockroach/cockroach-data
 

@@ -1,6 +1,10 @@
 package runtime
 
-import "github.com/elouan/dockyard/internal/domain"
+import (
+	"context"
+
+	"github.com/elouan/dockyard/internal/domain"
+)
 
 type DeploymentSpec struct {
 	DeploymentID string
@@ -43,9 +47,9 @@ type DeploymentResult struct {
 }
 
 type Driver interface {
-	PrepareDeployment(spec DeploymentSpec) error
-	ApplyRelease(spec DeploymentSpec) (DeploymentResult, error)
-	CheckHealth(deploymentID string) (DeploymentResult, error)
-	Rollback(deploymentID string, targetReleaseID string) (DeploymentResult, error)
-	DeleteDeployment(deploymentID string) error
+	PrepareDeployment(ctx context.Context, spec DeploymentSpec) error
+	ApplyRelease(ctx context.Context, spec DeploymentSpec) (DeploymentResult, error)
+	CheckHealth(ctx context.Context, deploymentID string) (DeploymentResult, error)
+	Rollback(ctx context.Context, deploymentID string, targetReleaseID string) (DeploymentResult, error)
+	DeleteDeployment(ctx context.Context, deploymentID string) error
 }
