@@ -314,7 +314,7 @@ Il fournit :
 - un `orchestrator-worker` minimal
 - un `deploy-agent` minimal
 - des interfaces de ports
-- un repository in-memory temporaire pour l'API
+- des repositories Postgres pour l'etat canonique
 - un frontend Next.js minimal
 
 ## 8. Ce qui viendra ensuite

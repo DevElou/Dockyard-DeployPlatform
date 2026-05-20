@@ -139,7 +139,6 @@ dockyard/
       github/                  # Source provider (API GitHub v3)
       httpclient/              # Client HTTP vers les deploy-agents
       httpapi/                 # Router HTTP de l'API
-      memory/                  # Repo en mémoire (utilisé dans les tests)
   db/
     migrations/                # Migrations golang-migrate (CockroachDB)
   infra/

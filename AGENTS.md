@@ -26,7 +26,7 @@ For TypeScript and React, use PascalCase for components and camelCase for values
 
 ## Testing Guidelines
 
-There are currently no committed test files. Add Go tests next to the package under test using `*_test.go`, then run `make test` or `go test ./...`. Prefer table-driven tests for domain validation and application service behavior.
+Go integration tests are committed for the Postgres adapters. Add new Go tests next to the package under test using `*_test.go`, then run `make test` or `go test ./...`. Prefer table-driven tests for domain validation and application service behavior.
 
 When frontend behavior becomes stateful, add tests under `web/` using the chosen framework. Until then, verify frontend changes with `cd web && npm run build` and `npm run lint`.
 

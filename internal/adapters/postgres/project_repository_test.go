@@ -49,6 +49,9 @@ func TestProjectRepository_CreateAndList(t *testing.T) {
 	if projects[0].ID != created.ID {
 		t.Errorf("ID mismatch: got %q, want %q", projects[0].ID, created.ID)
 	}
+	if projects[0].Status != domain.ProjectStatusActive {
+		t.Errorf("Status: got %q, want %q", projects[0].Status, domain.ProjectStatusActive)
+	}
 }
 
 func TestProjectRepository_Create_DuplicateSlug(t *testing.T) {

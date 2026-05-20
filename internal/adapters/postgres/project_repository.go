@@ -171,8 +171,13 @@ func (r *ProjectRepository) AddRuntimeTarget(ctx context.Context, projectID, run
 func scanProject(row pgx.CollectableRow) (domain.Project, error) {
 	var p domain.Project
 	var status string
-	return p, row.Scan(
+	err := row.Scan(
 		&p.ID, &p.Slug, &p.Name, &status, &p.GitHubOwner, &p.GitHubRepo,
 		&p.DefaultBranch, &p.RootDirectory, &p.DockerfilePath, &p.BuildContext,
 	)
+	if err != nil {
+		return domain.Project{}, err
+	}
+	p.Status = domain.ProjectStatus(status)
+	return p, nil
 }

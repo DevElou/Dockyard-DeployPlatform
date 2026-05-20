@@ -46,7 +46,7 @@ cmd/*/main.go          ← wiring only: config, instantiate adapters, start serv
 internal/domain/       ← pure business types and invariants (no external SDK imports)
 internal/application/  ← use cases, orchestrate domain via port interfaces
 internal/ports/        ← interfaces: repository, runtime, source, dns, routing, queue, registry, agent
-internal/adapters/     ← concrete implementations (HTTP router, in-memory repo, etc.)
+internal/adapters/     ← concrete implementations (HTTP router, Postgres, GitHub, Docker, agent client)
 ```
 
 Request flow: `HTTP → adapters/httpapi → application → ports → adapters/concrete`
@@ -54,7 +54,7 @@ Request flow: `HTTP → adapters/httpapi → application → ports → adapters/
 ### Port interfaces (V1)
 
 Defined in `internal/ports/`, each interface isolates one infrastructure concern:
-- `repository.ProjectRepository` — canonical state (CockroachDB target, currently `adapters/memory`)
+- repository ports — canonical state through CockroachDB/Postgres adapters
 - `runtime.Driver` — Docker container lifecycle
 - `source.Provider` — GitHub repo access
 - `registry.Builder` — Docker image build + push
@@ -72,10 +72,10 @@ Defined in `internal/ports/`, each interface isolates one infrastructure concern
 
 ### Current state
 
-The scaffold is functional but pre-persistence: `adapters/memory` is the active repository. CockroachDB adapters, GitHub integration, and Docker runtime driver are not yet implemented. The recommended next vertical slice: SQL migrations → repository adapters → project/release/deployment CRUD → real deploy-agent → Nginx Proxy Manager routing.
+The backend V1 is functional with CockroachDB/Postgres repositories, GitHub source resolution and archive download, Docker image build/push, a Docker runtime driver, a deploy-agent HTTP server, and an orchestrator worker for async build/deploy flows. The web frontend is still a placeholder. The recommended next vertical slices are routing through Nginx Proxy Manager, DNS through DuckDNS, and replacing the placeholder frontend with the console described in `docs/FRONTEND.md`.
 
 ## Module
 
 ```
-module github.com/elouan/dockyard   (go 1.24)
+module github.com/elouan/dockyard   (go 1.25)
 ```
