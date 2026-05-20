@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -17,19 +18,19 @@ func requireParam(r *http.Request, name string) (string, error) {
 }
 
 func mapError(w http.ResponseWriter, err error) {
-	switch err {
-	case postgres.ErrProjectNotFound,
-		postgres.ErrRuntimeTargetNotFound,
-		postgres.ErrReleaseNotFound,
-		postgres.ErrDeploymentNotFound,
-		postgres.ErrDomainNotFound:
+	switch {
+	case errors.Is(err, postgres.ErrProjectNotFound),
+		errors.Is(err, postgres.ErrRuntimeTargetNotFound),
+		errors.Is(err, postgres.ErrReleaseNotFound),
+		errors.Is(err, postgres.ErrDeploymentNotFound),
+		errors.Is(err, postgres.ErrDomainNotFound):
 		httpjson.Error(w, http.StatusNotFound, "not_found", err.Error())
-	case postgres.ErrProjectSlugExists,
-		postgres.ErrRuntimeTargetSlugExists,
-		postgres.ErrReleaseVersionExists,
-		postgres.ErrReleaseDigestExists,
-		postgres.ErrDomainHostnameExists,
-		postgres.ErrProjectRuntimeTargetExists:
+	case errors.Is(err, postgres.ErrProjectSlugExists),
+		errors.Is(err, postgres.ErrRuntimeTargetSlugExists),
+		errors.Is(err, postgres.ErrReleaseVersionExists),
+		errors.Is(err, postgres.ErrReleaseDigestExists),
+		errors.Is(err, postgres.ErrDomainHostnameExists),
+		errors.Is(err, postgres.ErrProjectRuntimeTargetExists):
 		httpjson.Error(w, http.StatusConflict, "conflict", err.Error())
 	default:
 		httpjson.Error(w, http.StatusInternalServerError, "internal_error", "an unexpected error occurred")

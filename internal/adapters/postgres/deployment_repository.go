@@ -46,6 +46,31 @@ func (r *DeploymentRepository) List(ctx context.Context, projectID string) ([]do
 	return deployments, nil
 }
 
+func (r *DeploymentRepository) ListByStatus(ctx context.Context, status domain.DeploymentStatus) ([]domain.Deployment, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::TEXT, project_id::TEXT, release_id::TEXT, runtime_target_id::TEXT,
+		       project_service_id::TEXT, environment_set_id::TEXT,
+		       status, strategy, triggered_by_user_id::TEXT,
+		       rollback_of_deployment_id::TEXT, started_at, finished_at, created_at
+		FROM deployments
+		WHERE status = $1
+		ORDER BY created_at ASC
+	`, string(status))
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list deployments by status: %w", err)
+	}
+	defer rows.Close()
+
+	deployments, err := pgx.CollectRows(rows, scanDeployment)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list deployments by status: %w", err)
+	}
+	if deployments == nil {
+		return []domain.Deployment{}, nil
+	}
+	return deployments, nil
+}
+
 func (r *DeploymentRepository) Create(ctx context.Context, d domain.Deployment) (domain.Deployment, error) {
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO deployments (project_id, release_id, runtime_target_id,

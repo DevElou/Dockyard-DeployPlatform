@@ -1,6 +1,10 @@
 package agent
 
-import "github.com/elouan/dockyard/internal/ports/runtime"
+import (
+	"context"
+
+	"github.com/elouan/dockyard/internal/ports/runtime"
+)
 
 type DeployRequest struct {
 	Spec runtime.DeploymentSpec
@@ -17,7 +21,7 @@ type StatusResponse struct {
 }
 
 type Client interface {
-	Deploy(request DeployRequest) (DeployResponse, error)
-	GetStatus(deploymentID string) (StatusResponse, error)
-	Remove(deploymentID string) error
+	Deploy(ctx context.Context, request DeployRequest) (DeployResponse, error)
+	GetStatus(ctx context.Context, deploymentID string) (StatusResponse, error)
+	Remove(ctx context.Context, deploymentID string) error
 }

@@ -1,5 +1,7 @@
 package registry
 
+import "context"
+
 type BuildRequest struct {
 	ProjectID      string
 	ReleaseVersion string
@@ -15,5 +17,5 @@ type BuildResult struct {
 }
 
 type Builder interface {
-	BuildAndPush(request BuildRequest) (BuildResult, error)
+	BuildAndPush(ctx context.Context, request BuildRequest) (BuildResult, error)
 }

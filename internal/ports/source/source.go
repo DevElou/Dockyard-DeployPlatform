@@ -1,5 +1,7 @@
 package source
 
+import "context"
+
 type Revision struct {
 	CommitSHA  string
 	GitRef     string
@@ -7,5 +9,5 @@ type Revision struct {
 }
 
 type Provider interface {
-	ResolveRevision(projectID string, ref string) (Revision, error)
+	ResolveRevision(ctx context.Context, projectID string, ref string) (Revision, error)
 }
