@@ -2,6 +2,10 @@
 
 Ce guide couvre le déploiement de Dockyard sur trois serveurs Docker dans un homelab ESXi.
 
+> **Nginx Proxy Manager** est une infrastructure existante — Dockyard ne le déploie pas.
+> Il sera utilisé automatiquement par Dockyard pour le routage HTTP(S) une fois
+> l'adapter `routing.Provider` implémenté (P2).
+
 ## Prérequis
 
 | Outil | Version | Usage |
@@ -23,7 +27,6 @@ go install -tags 'cockroachdb' github.com/golang-migrate/migrate/v4/cmd/migrate@
 server-1  ─── CockroachDB (nœud 1)
            ── Redis
            ── Registry Docker privé
-           ── Nginx Proxy Manager
            ── control-plane-api   :8080
            ── deploy-agent        :8090
 
@@ -33,6 +36,8 @@ server-2  ─── CockroachDB (nœud 2)
 
 server-3  ─── CockroachDB (nœud 3)
            ── deploy-agent        :8090
+
+(existant) ── Nginx Proxy Manager  — géré séparément, non déployé par Dockyard
 ```
 
 ---
@@ -81,6 +86,10 @@ docker network create dockyard_foundation || true
 docker network create dockyard_platform   || true
 ```
 
+> `dockyard_edge` est le réseau partagé entre l'API et Nginx Proxy Manager.
+> Si NPM tourne déjà sur un réseau existant, adapter le nom dans
+> `infra/platform/dockyard/compose.yml`.
+
 ### Étape 2 — CockroachDB
 
 Démarrer un nœud par serveur. Sur **chaque serveur**, exporter l'adresse annoncée :
@@ -114,7 +123,7 @@ docker exec -it cockroach-1 cockroach node status --insecure
 # doit afficher 3 nœuds avec is_live=true
 ```
 
-### Étape 3 — Redis, Registry, Nginx Proxy Manager (server-1)
+### Étape 3 — Redis et Registry (server-1)
 
 ```bash
 cd infra/foundation/redis
@@ -122,13 +131,14 @@ docker compose --env-file ../../../.env up -d
 
 cd ../registry
 docker compose --env-file ../../../.env up -d
-
-cd ../nginx-proxy-manager
-docker compose --env-file ../../../.env up -d
 ```
 
-Nginx Proxy Manager est accessible sur `http://server-1.local:81`.
-Identifiants par défaut : `admin@example.com` / `changeme`.
+Autoriser le registry insécure sur **chaque host Docker** qui buildera ou tirera des images :
+```bash
+# /etc/docker/daemon.json
+{ "insecure-registries": ["server-1.local:5000"] }
+sudo systemctl restart docker
+```
 
 ### Étape 4 — Migrations SQL
 
@@ -181,8 +191,6 @@ docker logs dockyard-deploy-agent -f
 ---
 
 ## Mises à jour
-
-Mettre à jour un service sans coupure du cluster :
 
 ```bash
 # API (server-1)
@@ -240,13 +248,13 @@ make test-integration
 **`migrate up` échoue avec "no such host"**
 → Le nom `server-1.local` n'est pas résolu. Utiliser l'IP directement dans `MIGRATE_URL`.
 
-**Le registry retourne 401 lors du push**
-→ Configurer Docker pour faire confiance au registry insécure :
-```bash
-# /etc/docker/daemon.json
-{ "insecure-registries": ["server-1.local:5000"] }
-sudo systemctl restart docker
-```
+**Le registry retourne une erreur lors du push**
+→ Vérifier que `insecure-registries` est configuré dans `/etc/docker/daemon.json` sur tous les hosts.
 
 **CockroachDB : un nœud ne rejoint pas le cluster**
 → Vérifier que `COCKROACH_JOIN` contient les bonnes adresses et que le port 26257 est ouvert entre les serveurs.
+
+**L'API ne répond pas derrière NPM**
+→ Dans NPM, créer un proxy host pointant vers `server-1.local:8080`.
+   S'assurer que le container `dockyard-control-plane-api` est sur le réseau `dockyard_edge`
+   et que NPM est sur ce même réseau.
