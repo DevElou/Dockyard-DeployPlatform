@@ -23,8 +23,8 @@ func NewReleaseRepository(pool *pgxpool.Pool) *ReleaseRepository {
 func (r *ReleaseRepository) List(ctx context.Context, projectID string) ([]domain.Release, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id::TEXT, project_id::TEXT, version, source_type, git_sha, git_ref,
-		       image_repository, image_tag, image_digest, build_status,
-		       created_by_user_id::TEXT, created_at
+		       COALESCE(image_repository, ''), COALESCE(image_tag, ''), COALESCE(image_digest, ''),
+		       build_status, created_by_user_id::TEXT, created_at
 		FROM releases
 		WHERE project_id = $1::UUID
 		ORDER BY created_at DESC
@@ -44,15 +44,42 @@ func (r *ReleaseRepository) List(ctx context.Context, projectID string) ([]domai
 	return releases, nil
 }
 
+func (r *ReleaseRepository) ListByBuildStatus(ctx context.Context, status domain.BuildStatus) ([]domain.Release, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::TEXT, project_id::TEXT, version, source_type, git_sha, git_ref,
+		       COALESCE(image_repository, ''), COALESCE(image_tag, ''), COALESCE(image_digest, ''),
+		       build_status, created_by_user_id::TEXT, created_at
+		FROM releases
+		WHERE build_status = $1
+		ORDER BY created_at ASC
+	`, string(status))
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list releases by build status: %w", err)
+	}
+	defer rows.Close()
+
+	releases, err := pgx.CollectRows(rows, scanRelease)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list releases by build status: %w", err)
+	}
+	if releases == nil {
+		return []domain.Release{}, nil
+	}
+	return releases, nil
+}
+
 func (r *ReleaseRepository) Create(ctx context.Context, release domain.Release) (domain.Release, error) {
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO releases (project_id, version, source_type, git_sha, git_ref,
 		                      image_repository, image_tag, image_digest, build_status, created_by_user_id)
-		VALUES ($1::UUID, $2, $3, $4, $5, $6, $7, $8, $9, $10::UUID)
+		VALUES ($1::UUID, $2, $3, $4, $5,
+		        NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''),
+		        $9, $10::UUID)
 		RETURNING id::TEXT, created_at
 	`,
 		release.ProjectID, release.Version, release.SourceType, release.GitSHA, release.GitRef,
-		release.ImageRepository, release.ImageTag, release.ImageDigest, string(release.BuildStatus),
+		release.ImageRepository, release.ImageTag, release.ImageDigest,
+		string(release.BuildStatus),
 		nullableString(release.CreatedByUserID),
 	).Scan(&release.ID, &release.CreatedAt)
 
@@ -68,15 +95,14 @@ func (r *ReleaseRepository) Create(ctx context.Context, release domain.Release) 
 		}
 		return domain.Release{}, fmt.Errorf("postgres: create release: %w", err)
 	}
-
 	return release, nil
 }
 
 func (r *ReleaseRepository) GetByID(ctx context.Context, id string) (domain.Release, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id::TEXT, project_id::TEXT, version, source_type, git_sha, git_ref,
-		       image_repository, image_tag, image_digest, build_status,
-		       created_by_user_id::TEXT, created_at
+		       COALESCE(image_repository, ''), COALESCE(image_tag, ''), COALESCE(image_digest, ''),
+		       build_status, created_by_user_id::TEXT, created_at
 		FROM releases
 		WHERE id = $1::UUID
 	`, id)
@@ -93,6 +119,34 @@ func (r *ReleaseRepository) GetByID(ctx context.Context, id string) (domain.Rele
 		return domain.Release{}, fmt.Errorf("postgres: get release: %w", err)
 	}
 	return release, nil
+}
+
+func (r *ReleaseRepository) UpdateBuildStatus(ctx context.Context, id string, status domain.BuildStatus) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE releases SET build_status = $1 WHERE id = $2::UUID
+	`, string(status), id)
+	if err != nil {
+		return fmt.Errorf("postgres: update release build status: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrReleaseNotFound
+	}
+	return nil
+}
+
+func (r *ReleaseRepository) UpdateBuildResult(ctx context.Context, id, imageRepository, imageTag, imageDigest string, status domain.BuildStatus) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE releases
+		SET image_repository = $1, image_tag = $2, image_digest = $3, build_status = $4
+		WHERE id = $5::UUID
+	`, imageRepository, imageTag, imageDigest, string(status), id)
+	if err != nil {
+		return fmt.Errorf("postgres: update release build result: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrReleaseNotFound
+	}
+	return nil
 }
 
 func scanRelease(row pgx.CollectableRow) (domain.Release, error) {

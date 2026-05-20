@@ -10,4 +10,5 @@ type Revision struct {
 
 type Provider interface {
 	ResolveRevision(ctx context.Context, projectID string, ref string) (Revision, error)
+	DownloadArchive(ctx context.Context, projectID string, commitSHA string, targetDir string) error
 }

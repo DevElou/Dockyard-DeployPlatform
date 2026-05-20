@@ -31,14 +31,6 @@ func (r Release) Validate() error {
 	if strings.TrimSpace(r.GitSHA) == "" {
 		return errors.New("release git SHA is required")
 	}
-	if strings.TrimSpace(r.ImageRepository) == "" {
-		return errors.New("release image repository is required")
-	}
-	if strings.TrimSpace(r.ImageTag) == "" {
-		return errors.New("release image tag is required")
-	}
-	if strings.TrimSpace(r.ImageDigest) == "" {
-		return errors.New("release image digest is required")
-	}
+	// image fields are populated async by BuildWorker
 	return nil
 }

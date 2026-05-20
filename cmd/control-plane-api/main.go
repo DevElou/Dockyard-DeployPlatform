@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/elouan/dockyard/internal/adapters/github"
 	"github.com/elouan/dockyard/internal/adapters/httpapi"
 	"github.com/elouan/dockyard/internal/adapters/postgres"
 	deploymentapp "github.com/elouan/dockyard/internal/application/deployment"
@@ -35,10 +36,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	githubToken := getEnv("DOCKYARD_GITHUB_TOKEN", "")
+	projectRepo := postgres.NewProjectRepository(pool)
+	src := github.NewSourceProvider(githubToken, projectRepo)
+
 	router := httpapi.NewRouter(httpapi.RouterDeps{
-		ProjectService:       projectapp.NewService(postgres.NewProjectRepository(pool)),
+		ProjectService:       projectapp.NewService(projectRepo),
 		RuntimeTargetService: runtimetargetapp.NewService(postgres.NewRuntimeTargetRepository(pool)),
-		ReleaseService:       releaseapp.NewService(postgres.NewReleaseRepository(pool)),
+		ReleaseService:       releaseapp.NewService(postgres.NewReleaseRepository(pool), src),
 		DeploymentService:    deploymentapp.NewService(postgres.NewDeploymentRepository(pool)),
 		DomainService:        domainsvc.NewService(postgres.NewDomainRepository(pool)),
 	})

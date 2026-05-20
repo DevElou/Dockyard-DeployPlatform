@@ -61,7 +61,15 @@ func (d Domain) Validate() error {
 }
 
 type EnvironmentVariable struct {
-	Key      string
-	Value    string
-	IsSecret bool
+	ID               string
+	EnvironmentSetID string
+	Key              string
+	Value            string
+	IsSecret         bool
+}
+
+type EnvironmentSet struct {
+	ID        string
+	ProjectID string
+	Name      string
 }

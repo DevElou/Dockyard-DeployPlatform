@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/elouan/dockyard/internal/adapters/dockerregistry"
+	"github.com/elouan/dockyard/internal/adapters/github"
 	"github.com/elouan/dockyard/internal/adapters/httpclient"
 	"github.com/elouan/dockyard/internal/adapters/postgres"
 	"github.com/elouan/dockyard/internal/domain"
@@ -29,23 +31,45 @@ func main() {
 	}
 	defer pool.Close()
 
+	agentKey := getEnv("DOCKYARD_AGENT_KEY", "")
+
 	factory := func(target domain.RuntimeTarget) (agent.Client, error) {
 		if target.Endpoint == "" {
 			return nil, fmt.Errorf("runtime target %s has no endpoint", target.ID)
 		}
-		agentKey := getEnv("DOCKYARD_AGENT_KEY", "")
 		return httpclient.NewAgentClient(target.Endpoint, agentKey), nil
 	}
 
-	worker := NewWorker(
+	projectRepo := postgres.NewProjectRepository(pool)
+	src := github.NewSourceProvider(getEnv("DOCKYARD_GITHUB_TOKEN", ""), projectRepo)
+	builder := dockerregistry.NewBuilder(getEnv("DOCKYARD_REGISTRY_URL", ""))
+
+	buildWorker := NewBuildWorker(
+		postgres.NewReleaseRepository(pool),
+		projectRepo,
+		src,
+		builder,
+	)
+
+	deployWorker := NewDeployWorker(
 		postgres.NewDeploymentRepository(pool),
 		postgres.NewReleaseRepository(pool),
-		postgres.NewProjectRepository(pool),
+		projectRepo,
 		postgres.NewRuntimeTargetRepository(pool),
+		postgres.NewProjectServiceRepository(pool),
+		postgres.NewEnvironmentSetRepository(pool),
+		postgres.NewEnvironmentVariableRepository(pool),
 		factory,
 	)
 
-	worker.Run(ctx)
+	buildDone := make(chan struct{})
+	go func() {
+		defer close(buildDone)
+		buildWorker.Run(ctx)
+	}()
+
+	deployWorker.Run(ctx)
+	<-buildDone
 }
 
 func getEnv(key, fallback string) string {

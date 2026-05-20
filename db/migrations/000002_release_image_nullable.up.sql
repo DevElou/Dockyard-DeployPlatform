@@ -1,0 +1,3 @@
+ALTER TABLE releases ALTER COLUMN image_repository DROP NOT NULL;
+ALTER TABLE releases ALTER COLUMN image_tag DROP NOT NULL;
+ALTER TABLE releases ALTER COLUMN image_digest DROP NOT NULL;
