@@ -3,17 +3,18 @@ services:
     build:
       context: ../../..
       dockerfile: build/control-plane-api.Dockerfile
-    image: dockyard/control-plane-api:dev
+    image: dockyard/control-plane-api:latest
     container_name: dockyard-control-plane-api
     restart: unless-stopped
     environment:
       DOCKYARD_API_ADDR: ":8080"
-      DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:-postgresql://root@server-1.local:26257/dockyard?sslmode=disable}
+      DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:?DOCKYARD_DATABASE_URL is required}
       DOCKYARD_GITHUB_TOKEN: ${DOCKYARD_GITHUB_TOKEN:?DOCKYARD_GITHUB_TOKEN is required}
       DOCKYARD_NPM_URL: ${DOCKYARD_NPM_URL:-}
       DOCKYARD_NPM_IDENTITY: ${DOCKYARD_NPM_IDENTITY:-}
       DOCKYARD_NPM_SECRET: ${DOCKYARD_NPM_SECRET:-}
       DOCKYARD_NPM_DEFAULT_FORWARD_SCHEME: ${DOCKYARD_NPM_DEFAULT_FORWARD_SCHEME:-http}
+      DOCKYARD_NPM_REQUEST_TIMEOUT: ${DOCKYARD_NPM_REQUEST_TIMEOUT:-15s}
     ports:
       - "8080:8080"
     networks:
@@ -24,18 +25,19 @@ services:
     build:
       context: ../../..
       dockerfile: build/orchestrator-worker.Dockerfile
-    image: dockyard/orchestrator-worker:dev
+    image: dockyard/orchestrator-worker:latest
     container_name: dockyard-orchestrator-worker
     restart: unless-stopped
     environment:
-      DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:-postgresql://root@server-1.local:26257/dockyard?sslmode=disable}
+      DOCKYARD_DATABASE_URL: ${DOCKYARD_DATABASE_URL:?DOCKYARD_DATABASE_URL is required}
       DOCKYARD_GITHUB_TOKEN: ${DOCKYARD_GITHUB_TOKEN:?DOCKYARD_GITHUB_TOKEN is required}
       DOCKYARD_REGISTRY_URL: ${DOCKYARD_REGISTRY_URL:?DOCKYARD_REGISTRY_URL is required}
-      DOCKYARD_AGENT_KEY: ${DOCKYARD_AGENT_KEY:-}
+      DOCKYARD_AGENT_KEY: ${DOCKYARD_AGENT_KEY:?DOCKYARD_AGENT_KEY is required}
       DOCKYARD_NPM_URL: ${DOCKYARD_NPM_URL:-}
       DOCKYARD_NPM_IDENTITY: ${DOCKYARD_NPM_IDENTITY:-}
       DOCKYARD_NPM_SECRET: ${DOCKYARD_NPM_SECRET:-}
       DOCKYARD_NPM_DEFAULT_FORWARD_SCHEME: ${DOCKYARD_NPM_DEFAULT_FORWARD_SCHEME:-http}
+      DOCKYARD_NPM_REQUEST_TIMEOUT: ${DOCKYARD_NPM_REQUEST_TIMEOUT:-15s}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
@@ -45,11 +47,15 @@ services:
     build:
       context: ../../..
       dockerfile: build/web.Dockerfile
-    image: dockyard/web:dev
+      args:
+        # URL de l'API vue depuis le navigateur — baked au build
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://server-1.local:8080}
+    image: dockyard/web:latest
     container_name: dockyard-web
     restart: unless-stopped
     environment:
       PORT: "3000"
+      HOSTNAME: "0.0.0.0"
     ports:
       - "3000:3000"
     networks:
