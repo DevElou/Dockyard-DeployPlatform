@@ -191,6 +191,7 @@ make test-integration   # requiert DOCKYARD_TEST_DSN ou l'infra locale up
 |---|---|---|
 | `DOCKYARD_DATABASE_URL` | api, worker | DSN CockroachDB (`postgresql://root@localhost:26257/dockyard?sslmode=disable`) |
 | `DOCKYARD_API_ADDR` | api | Adresse d'écoute (défaut `:8080`) |
+| `DOCKYARD_CORS_ALLOWED_ORIGINS` | api | Origines browser autorisées, séparées par des virgules (`http://localhost:3000,http://127.0.0.1:3000`) |
 | `DOCKYARD_AGENT_ADDR` | agent | Adresse d'écoute (défaut `:8090`) |
 | `DOCKYARD_AGENT_KEY` | agent, worker | Clé d'authentification inter-service (obligatoire sur l'agent) |
 | `DOCKYARD_TEST_DSN` | tests | DSN pour les tests d'intégration Postgres |

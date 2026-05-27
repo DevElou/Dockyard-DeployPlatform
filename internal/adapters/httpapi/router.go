@@ -70,5 +70,5 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.HandleFunc("PUT /api/v1/projects/{projectId}/environments/{envId}/variables", handleUpsertVariable(deps.EnvironmentService))
 	mux.HandleFunc("DELETE /api/v1/projects/{projectId}/environments/{envId}/variables/{varId}", handleDeleteVariable(deps.EnvironmentService))
 
-	return withLogging(mux)
+	return withLogging(withCORS(mux))
 }
