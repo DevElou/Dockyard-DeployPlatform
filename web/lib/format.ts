@@ -1,3 +1,4 @@
+// fr-FR locale is intentional — this is a personal homelab tool used in France.
 const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
   day: "2-digit",
   month: "short",

@@ -16,22 +16,19 @@ docker network create dockyard_edge
 ## Lancement
 
 ```bash
-cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build
+make deploy-platform
 ```
 
 ## Lancement partiel
 
-API + web :
+Frontend seul :
 
 ```bash
-cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build control-plane-api web
+make deploy-web
 ```
 
-Worker seul :
+Etat des services :
 
 ```bash
-cd infra/platform/dockyard
-docker compose -f compose.yml up -d --build orchestrator-worker
+make deploy-ps
 ```

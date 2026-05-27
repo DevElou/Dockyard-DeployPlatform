@@ -215,8 +215,8 @@ docker run --rm \
 ### 4.7 Déployer l'API, le Worker et le Frontend
 
 ```bash
-cd /opt/dockyard/repo/infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build
+cd /opt/dockyard/repo
+make deploy-platform
 ```
 
 Trois containers démarrent :
@@ -230,8 +230,8 @@ Trois containers démarrent :
 ### 4.8 Déployer l'agent sur server-1
 
 ```bash
-cd /opt/dockyard/repo/infra/agents/deploy-agent
-docker compose --env-file ../../../.env up -d --build
+cd /opt/dockyard/repo
+make deploy-agent
 ```
 
 ### 4.9 Vérifier l'installation
@@ -282,8 +282,7 @@ EOF
 sudo systemctl restart docker
 
 # 5. Agent
-cd infra/agents/deploy-agent
-docker compose --env-file ../../../.env up -d --build
+make deploy-agent
 
 # 6. Vérifier
 curl http://localhost:8090/healthz
@@ -323,7 +322,7 @@ Dans l'interface NPM (`http://server-1.local:81`) :
 > Si l'API est exposée via un domaine HTTPS, mettre à jour `NEXT_PUBLIC_API_BASE_URL=https://api.dockyard.home`
 > dans `.env` et reconstruire l'image web :
 > ```bash
-> docker compose --env-file ../../../.env up -d --build web
+> make deploy-web
 > ```
 
 ---
@@ -363,8 +362,7 @@ git pull
 make migrate-up
 
 # Reconstruire et redémarrer
-cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build
+make deploy-platform
 ```
 
 ### 8.2 Agent (chaque serveur cible)
@@ -373,8 +371,7 @@ docker compose --env-file ../../../.env up -d --build
 cd /opt/dockyard/repo
 git pull
 
-cd infra/agents/deploy-agent
-docker compose --env-file ../../../.env up -d --build
+make deploy-agent
 ```
 
 ### 8.3 Rollback rapide
@@ -384,8 +381,7 @@ docker compose --env-file ../../../.env up -d --build
 git checkout <commit-ou-tag>
 
 # Reconstruire
-cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build
+make deploy-platform
 ```
 
 ---
@@ -410,6 +406,7 @@ make dev-build   # premier lancement (~5 min)
 |---|---|
 | `make dev-up` | Démarrer sans rebuild |
 | `make dev-build` | Démarrer + rebuild les images |
+| `make dev-deploy-web` | Rebuild + redéployer uniquement le frontend local |
 | `make dev-down` | Arrêter (volumes conservés) |
 | `make dev-reset` | Arrêter + supprimer tous les volumes |
 | `make dev-logs` | Suivre les logs en direct |
@@ -519,6 +516,5 @@ Si ça échoue : vérifier le firewall, les hostnames, et que les deux container
 Cette variable est baked dans le bundle JavaScript au build. Un `docker compose up -d` sans `--build` **ne suffit pas** :
 
 ```bash
-cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build web
+make deploy-web
 ```

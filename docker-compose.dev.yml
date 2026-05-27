@@ -1,5 +1,5 @@
 # docker-compose.dev.yml — stack locale complète
-# Usage : docker compose -f docker-compose.dev.yml up --build
+# Usage : make dev-build
 #
 # Prérequis :
 #   - Créer .env.dev (cp .env.dev.example .env.dev)
@@ -171,11 +171,14 @@ services:
     image: dockyard/web:dev
     container_name: dockyard-dev-web
     restart: unless-stopped
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
     depends_on:
       control-plane-api:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${DOCKYARD_WEB_HOST_PORT:-3000}:3000"
     networks: [dev]
 
 networks:

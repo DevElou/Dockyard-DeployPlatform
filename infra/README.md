@@ -118,15 +118,13 @@ make migrate-up
 Dockyard API + worker :
 
 ```bash
-cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build
+make deploy-platform
 ```
 
 Deploy agent :
 
 ```bash
-cd infra/agents/deploy-agent
-docker compose --env-file ../../../.env up -d --build
+make deploy-agent
 ```
 
 ### `server-2` et `server-3` — Agent uniquement
@@ -140,8 +138,7 @@ docker network create dockyard_platform || true
 Deploy agent :
 
 ```bash
-cd infra/agents/deploy-agent
-docker compose --env-file ../../../.env up -d --build
+make deploy-agent
 ```
 
 ## Mises a jour
@@ -149,15 +146,13 @@ docker compose --env-file ../../../.env up -d --build
 Mettre a jour API + worker sur `server-1` :
 
 ```bash
-cd infra/platform/dockyard
-docker compose --env-file ../../../.env up -d --build
+make deploy-platform
 ```
 
 Mettre a jour un agent :
 
 ```bash
-cd infra/agents/deploy-agent
-docker compose --env-file ../../../.env up -d --build
+make deploy-agent
 ```
 
 ## Developpement local

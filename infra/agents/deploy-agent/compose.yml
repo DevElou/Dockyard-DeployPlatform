@@ -3,7 +3,7 @@ services:
     build:
       context: ../../..
       dockerfile: build/deploy-agent.Dockerfile
-    image: dockyard/deploy-agent:dev
+    image: dockyard/deploy-agent:latest
     container_name: dockyard-deploy-agent
     restart: unless-stopped
     environment:

@@ -5,7 +5,7 @@ import type { UseFormReturn } from "react-hook-form";
 export function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
-  return "Une erreur inattendue s'est produite.";
+  return "An unexpected error occurred.";
 }
 
 type FieldMap = Record<string, string>;
@@ -34,5 +34,5 @@ export function handleMutationError(
     toast.error(error.message);
     return;
   }
-  toast.error("Une erreur inattendue s'est produite.");
+  toast.error("An unexpected error occurred.");
 }
