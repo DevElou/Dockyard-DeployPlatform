@@ -82,7 +82,7 @@ services:
     networks: [dev]
 
   migrate:
-    image: ghcr.io/golang-migrate/migrate:latest
+    image: migrate/migrate:latest
     container_name: dockyard-dev-migrate
     restart: "no"
     depends_on:

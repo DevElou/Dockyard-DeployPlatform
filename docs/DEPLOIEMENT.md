@@ -84,7 +84,7 @@ go install -tags 'cockroachdb' \
   github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 ```
 
-> Alternative sans Go : utiliser le container `ghcr.io/golang-migrate/migrate` (cf. section 4.6).
+> Alternative sans Go : utiliser le container `migrate/migrate` (cf. section 4.6).
 
 ---
 
@@ -206,7 +206,7 @@ make migrate-up
 docker run --rm \
   --network host \
   -v "/opt/dockyard/repo/db/migrations:/migrations" \
-  ghcr.io/golang-migrate/migrate:latest \
+  migrate/migrate:latest \
   -path /migrations \
   -database "cockroachdb://root@localhost:26257/dockyard?sslmode=disable" \
   up
