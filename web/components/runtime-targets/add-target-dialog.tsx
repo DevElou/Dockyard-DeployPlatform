@@ -100,7 +100,7 @@ export function AddTargetDialog({ open, onOpenChange }: AddTargetDialogProps) {
                   <FormLabel>Agent endpoint</FormLabel>
                   <FormDescription>URL of the deploy-agent on this host</FormDescription>
                   <FormControl>
-                    <Input placeholder="http://server-1:8080" {...field} />
+                    <Input placeholder="http://deploy-agent:8090" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
