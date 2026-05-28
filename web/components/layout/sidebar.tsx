@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const nav = [
   { href: "/projects", label: "Projects", icon: LayoutGrid },
   { href: "/settings/runtime-targets", label: "Runtime Targets", icon: Server },
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/settings", label: "Settings", icon: Settings, exact: true },
 ];
 
 export function Sidebar() {
@@ -24,11 +24,10 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 p-2">
-        {nav.map(({ href, label, icon: Icon }) => {
-          const active =
-            href === "/projects"
-              ? pathname === "/projects" || pathname.startsWith("/projects/")
-              : pathname === href || pathname.startsWith(href + "/");
+        {nav.map(({ href, label, icon: Icon, exact }) => {
+          const active = exact
+            ? pathname === href
+            : pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
               key={href}

@@ -11,14 +11,14 @@ type Deployment struct {
 	ProjectID              string           `json:"projectId"`
 	ReleaseID              string           `json:"releaseId"`
 	RuntimeTargetID        string           `json:"runtimeTargetId"`
-	ProjectServiceID       *string          `json:"projectServiceId"`
-	EnvironmentSetID       *string          `json:"environmentSetId"`
+	ProjectServiceID       *string          `json:"projectServiceId,omitempty"`
+	EnvironmentSetID       *string          `json:"environmentSetId,omitempty"`
 	Status                 DeploymentStatus `json:"status"`
 	Strategy               string           `json:"strategy"`
-	TriggeredByUserID      *string          `json:"triggeredByUserId"`
-	RollbackOfDeploymentID *string          `json:"rollbackOfDeploymentId"`
-	StartedAt              *time.Time       `json:"startedAt"`
-	FinishedAt             *time.Time       `json:"finishedAt"`
+	TriggeredByUserID      *string          `json:"triggeredByUserId,omitempty"`
+	RollbackOfDeploymentID *string          `json:"rollbackOfDeploymentId,omitempty"`
+	StartedAt              *time.Time       `json:"startedAt,omitempty"`
+	FinishedAt             *time.Time       `json:"finishedAt,omitempty"`
 	CreatedAt              time.Time        `json:"createdAt"`
 }
 
@@ -38,7 +38,7 @@ func (d Deployment) Validate() error {
 type Domain struct {
 	ID               string       `json:"id"`
 	ProjectID        string       `json:"projectId"`
-	ProjectServiceID *string      `json:"projectServiceId"`
+	ProjectServiceID *string      `json:"projectServiceId,omitempty"`
 	Hostname         string       `json:"hostname"`
 	BaseDomain       string       `json:"baseDomain"`
 	Provider         string       `json:"provider"`

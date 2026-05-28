@@ -26,8 +26,8 @@ type RuntimeTarget struct {
 	RuntimeType  RuntimeType `json:"runtimeType"`
 	Endpoint     string      `json:"endpoint"`
 	AgentKeyHash string      `json:"-"`
-	ServerGroup  *string     `json:"serverGroup"`
-	Region       *string     `json:"region"`
+	ServerGroup  *string     `json:"serverGroup,omitempty"`
+	Region       *string     `json:"region,omitempty"`
 	Enabled      bool        `json:"enabled"`
 }
 
