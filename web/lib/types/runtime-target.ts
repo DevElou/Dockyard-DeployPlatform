@@ -6,7 +6,6 @@ export interface RuntimeTarget {
   name: string;
   runtimeType: RuntimeType;
   endpoint: string;
-  agentKeyHash: string;
   serverGroup: string | null;
   region: string | null;
   enabled: boolean;

@@ -7,18 +7,18 @@ import (
 )
 
 type Release struct {
-	ID              string
-	ProjectID       string
-	Version         string
-	SourceType      string
-	GitSHA          string
-	GitRef          string
-	ImageRepository string
-	ImageTag        string
-	ImageDigest     string
-	BuildStatus     BuildStatus
-	CreatedByUserID *string
-	CreatedAt       time.Time
+	ID              string      `json:"id"`
+	ProjectID       string      `json:"projectId"`
+	Version         string      `json:"version"`
+	SourceType      string      `json:"sourceType"`
+	GitSHA          string      `json:"gitSha"`
+	GitRef          string      `json:"gitRef"`
+	ImageRepository string      `json:"imageRepository"`
+	ImageTag        string      `json:"imageTag"`
+	ImageDigest     string      `json:"imageDigest"`
+	BuildStatus     BuildStatus `json:"buildStatus"`
+	CreatedByUserID *string     `json:"createdByUserId"`
+	CreatedAt       time.Time   `json:"createdAt"`
 }
 
 func (r Release) Validate() error {
