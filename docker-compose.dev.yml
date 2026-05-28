@@ -1,0 +1,191 @@
+# docker-compose.dev.yml — stack locale complète
+# Usage : make dev-build
+#
+# Prérequis :
+#   - Créer .env.dev (cp .env.dev.example .env.dev)
+#   - Renseigner DOCKYARD_GITHUB_TOKEN
+#   - Ajouter localhost:5000 aux registries insécurisés dans Docker Desktop
+#     (Settings → Docker Engine → insecure-registries)
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  cockroach:
+    image: cockroachdb/cockroach:v25.3.3
+    container_name: dockyard-dev-cockroach
+    restart: unless-stopped
+    command: start-single-node --insecure --listen-addr=:26257 --http-addr=:8081
+    ports:
+      - "26257:26257"
+      - "8081:8081"   # UI CockroachDB
+    volumes:
+      - cockroach-dev-data:/cockroach/cockroach-data
+    networks: [dev]
+    healthcheck:
+      test:
+        - CMD
+        - cockroach
+        - sql
+        - --insecure
+        - --host=localhost:26257
+        - -e
+        - "SELECT 1"
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: dockyard-dev-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-dev-data:/data
+    networks: [dev]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  registry:
+    image: registry:2
+    container_name: dockyard-dev-registry
+    restart: unless-stopped
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    ports:
+      - "5000:5000"
+    volumes:
+      - registry-dev-data:/var/lib/registry
+    networks: [dev]
+
+  # ── Init DB + Migrations ────────────────────────────────────────────────────
+
+  db-init:
+    image: cockroachdb/cockroach:v25.3.3
+    container_name: dockyard-dev-db-init
+    restart: "no"
+    depends_on:
+      cockroach:
+        condition: service_healthy
+    command:
+      - sql
+      - --insecure
+      - --host=cockroach:26257
+      - -e
+      - "CREATE DATABASE IF NOT EXISTS dockyard;"
+    networks: [dev]
+
+  migrate:
+    image: migrate/migrate:latest
+    container_name: dockyard-dev-migrate
+    restart: "no"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./db/migrations:/migrations:ro
+    command:
+      - "-path=/migrations"
+      - "-database=cockroachdb://root@cockroach:26257/dockyard?sslmode=disable"
+      - "up"
+    networks: [dev]
+
+  # ── Application ─────────────────────────────────────────────────────────────
+
+  control-plane-api:
+    build:
+      context: .
+      dockerfile: build/control-plane-api.Dockerfile
+    image: dockyard/control-plane-api:dev
+    container_name: dockyard-dev-api
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env.dev
+    environment:
+      DOCKYARD_API_ADDR: ":8080"
+      DOCKYARD_DATABASE_URL: "postgresql://root@cockroach:26257/dockyard?sslmode=disable"
+    ports:
+      - "8080:8080"
+    networks: [dev]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  orchestrator-worker:
+    build:
+      context: .
+      dockerfile: build/orchestrator-worker.Dockerfile
+    image: dockyard/orchestrator-worker:dev
+    container_name: dockyard-dev-worker
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    env_file: .env.dev
+    environment:
+      DOCKYARD_DATABASE_URL: "postgresql://root@cockroach:26257/dockyard?sslmode=disable"
+      # Le registry est exposé sur localhost:5000 — le daemon Docker hôte peut l'atteindre
+      DOCKYARD_REGISTRY_URL: "localhost:5000"
+    volumes:
+      # Accès au daemon Docker hôte pour builder et pusher les images
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [dev]
+
+  deploy-agent:
+    build:
+      context: .
+      dockerfile: build/deploy-agent.Dockerfile
+    image: dockyard/deploy-agent:dev
+    container_name: dockyard-dev-agent
+    restart: unless-stopped
+    depends_on:
+      - control-plane-api
+    env_file: .env.dev
+    environment:
+      DOCKYARD_AGENT_ADDR: ":8090"
+      DOCKYARD_REGISTRY_URL: "localhost:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8090:8090"
+    networks: [dev]
+
+  web:
+    build:
+      context: .
+      dockerfile: build/web.Dockerfile
+      args:
+        # Adresse de l'API vue depuis le navigateur (hôte, pas le réseau Docker)
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    image: dockyard/web:dev
+    container_name: dockyard-dev-web
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    depends_on:
+      control-plane-api:
+        condition: service_healthy
+    ports:
+      - "${DOCKYARD_WEB_HOST_PORT:-3000}:3000"
+    networks: [dev]
+
+networks:
+  dev:
+    name: dockyard_dev
+
+volumes:
+  cockroach-dev-data:
+  redis-dev-data:
+  registry-dev-data:

@@ -21,6 +21,7 @@ type CreateRuntimeTargetInput struct {
 	Name         string  `json:"name"`
 	Endpoint     string  `json:"endpoint"`
 	AgentKeyHash string  `json:"agentKeyHash"`
+	AgentKey     string  `json:"agentKey"`
 	ServerGroup  *string `json:"serverGroup"`
 	Region       *string `json:"region"`
 }
@@ -30,12 +31,17 @@ func (s *Service) List(ctx context.Context) ([]domain.RuntimeTarget, error) {
 }
 
 func (s *Service) Create(ctx context.Context, input CreateRuntimeTargetInput) (domain.RuntimeTarget, error) {
+	agentKeyHash := strings.TrimSpace(input.AgentKeyHash)
+	if agentKeyHash == "" {
+		agentKeyHash = strings.TrimSpace(input.AgentKey)
+	}
+
 	rt := domain.RuntimeTarget{
 		Slug:         strings.TrimSpace(input.Slug),
 		Name:         strings.TrimSpace(input.Name),
 		RuntimeType:  domain.RuntimeTypeDocker,
 		Endpoint:     strings.TrimSpace(input.Endpoint),
-		AgentKeyHash: strings.TrimSpace(input.AgentKeyHash),
+		AgentKeyHash: agentKeyHash,
 		ServerGroup:  input.ServerGroup,
 		Region:       input.Region,
 		Enabled:      true,

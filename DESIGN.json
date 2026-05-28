@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-27T00:00:00Z",
+  "title": "Design System: Dockyard",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas White",
+        "canonical": "oklch(98.5% 0.007 240)",
+        "hex": "#f7f8fa",
+        "tonalRamp": [
+          "oklch(15% 0.007 240)",
+          "oklch(28% 0.007 240)",
+          "oklch(42% 0.007 240)",
+          "oklch(55% 0.007 240)",
+          "oklch(68% 0.007 240)",
+          "oklch(79% 0.007 240)",
+          "oklch(89% 0.007 240)",
+          "oklch(98.5% 0.007 240)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Deep Foreground",
+        "canonical": "oklch(12% 0.025 250)",
+        "hex": "#0e1117",
+        "tonalRamp": [
+          "oklch(12% 0.025 250)",
+          "oklch(22% 0.025 250)",
+          "oklch(35% 0.025 250)",
+          "oklch(48% 0.025 250)",
+          "oklch(60% 0.025 250)",
+          "oklch(72% 0.025 250)",
+          "oklch(85% 0.025 250)",
+          "oklch(95% 0.025 250)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Instrument Graphite",
+        "canonical": "oklch(22% 0.03 250)",
+        "hex": "#1c2333",
+        "tonalRamp": [
+          "oklch(12% 0.03 250)",
+          "oklch(22% 0.03 250)",
+          "oklch(34% 0.03 250)",
+          "oklch(46% 0.03 250)",
+          "oklch(58% 0.03 250)",
+          "oklch(70% 0.03 250)",
+          "oklch(83% 0.03 250)",
+          "oklch(95% 0.03 250)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Surface Muted",
+        "canonical": "oklch(95.5% 0.008 240)",
+        "hex": "#f1f2f5",
+        "tonalRamp": [
+          "oklch(20% 0.008 240)",
+          "oklch(35% 0.008 240)",
+          "oklch(50% 0.008 240)",
+          "oklch(65% 0.008 240)",
+          "oklch(78% 0.008 240)",
+          "oklch(87% 0.008 240)",
+          "oklch(93% 0.008 240)",
+          "oklch(95.5% 0.008 240)"
+        ]
+      },
+      "muted-fg": {
+        "role": "neutral",
+        "displayName": "Cool Slate",
+        "canonical": "oklch(48% 0.018 250)",
+        "hex": "#6b7280",
+        "tonalRamp": [
+          "oklch(18% 0.018 250)",
+          "oklch(28% 0.018 250)",
+          "oklch(38% 0.018 250)",
+          "oklch(48% 0.018 250)",
+          "oklch(60% 0.018 250)",
+          "oklch(72% 0.018 250)",
+          "oklch(84% 0.018 250)",
+          "oklch(95% 0.018 250)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Panel Border",
+        "canonical": "oklch(90% 0.010 240)",
+        "hex": "#e3e5ea",
+        "tonalRamp": [
+          "oklch(20% 0.010 240)",
+          "oklch(35% 0.010 240)",
+          "oklch(50% 0.010 240)",
+          "oklch(65% 0.010 240)",
+          "oklch(78% 0.010 240)",
+          "oklch(86% 0.010 240)",
+          "oklch(90% 0.010 240)",
+          "oklch(96% 0.010 240)"
+        ]
+      },
+      "status-healthy": {
+        "role": "semantic",
+        "displayName": "Healthy Green",
+        "canonical": "oklch(52% 0.13 145)",
+        "hex": "#2f7a4e",
+        "tonalRamp": [
+          "oklch(20% 0.13 145)",
+          "oklch(30% 0.13 145)",
+          "oklch(40% 0.13 145)",
+          "oklch(52% 0.13 145)",
+          "oklch(64% 0.13 145)",
+          "oklch(76% 0.10 145)",
+          "oklch(88% 0.06 145)",
+          "oklch(97% 0.03 145)"
+        ]
+      },
+      "status-building": {
+        "role": "semantic",
+        "displayName": "Building Blue",
+        "canonical": "oklch(55% 0.13 230)",
+        "hex": "#3a71b8",
+        "tonalRamp": [
+          "oklch(20% 0.13 230)",
+          "oklch(30% 0.13 230)",
+          "oklch(42% 0.13 230)",
+          "oklch(55% 0.13 230)",
+          "oklch(67% 0.12 230)",
+          "oklch(78% 0.09 230)",
+          "oklch(89% 0.05 230)",
+          "oklch(97% 0.02 230)"
+        ]
+      },
+      "status-pending": {
+        "role": "semantic",
+        "displayName": "Pending Amber",
+        "canonical": "oklch(58% 0.12 75)",
+        "hex": "#aa7c1a",
+        "tonalRamp": [
+          "oklch(22% 0.12 75)",
+          "oklch(33% 0.12 75)",
+          "oklch(45% 0.12 75)",
+          "oklch(58% 0.12 75)",
+          "oklch(70% 0.10 75)",
+          "oklch(80% 0.08 75)",
+          "oklch(90% 0.05 75)",
+          "oklch(97% 0.03 75)"
+        ]
+      },
+      "status-failed": {
+        "role": "semantic",
+        "displayName": "Failed Red",
+        "canonical": "oklch(52% 0.18 28)",
+        "hex": "#b73b2a",
+        "tonalRamp": [
+          "oklch(20% 0.18 28)",
+          "oklch(30% 0.18 28)",
+          "oklch(40% 0.18 28)",
+          "oklch(52% 0.18 28)",
+          "oklch(63% 0.16 28)",
+          "oklch(75% 0.12 28)",
+          "oklch(87% 0.07 28)",
+          "oklch(97% 0.04 28)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page-level titles. Used once per view. Examples: 'Projects', 'Runtime Targets'." },
+      "headline": { "displayName": "Headline", "purpose": "Section headings, major card titles, dialog headings." },
+      "title": { "displayName": "Title", "purpose": "Subsection labels, table column headers, tab labels. The workhorse size." },
+      "body": { "displayName": "Body", "purpose": "Primary reading text, descriptions, form labels. Max 65ch for prose blocks." },
+      "label": { "displayName": "Label", "purpose": "Status labels, badge text, metadata (timestamps, slugs, branch names, SHAs)." }
+    },
+    "shadows": [
+      {
+        "name": "raised",
+        "value": "0 1px 3px rgba(14, 17, 23, 0.08), 0 1px 2px rgba(14, 17, 23, 0.04)",
+        "purpose": "Cards on hover, focused dropdown triggers. Lifts element without drama."
+      },
+      {
+        "name": "overlay",
+        "value": "0 8px 32px rgba(14, 17, 23, 0.12), 0 2px 8px rgba(14, 17, 23, 0.06)",
+        "purpose": "Dialogs, sheet panels, popovers. Communicates modal layering."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-standard",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Default easing for state transitions. Use for hover, focus, reveal."
+      },
+      {
+        "name": "duration-fast",
+        "value": "120ms",
+        "purpose": "Instant feedback: border-color, background-color shifts."
+      },
+      {
+        "name": "duration-standard",
+        "value": "180ms",
+        "purpose": "Shadow appearance, opacity transitions."
+      },
+      {
+        "name": "duration-slow",
+        "value": "300ms",
+        "purpose": "Dialog enter/exit, sheet slides. Only for overlay elements."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action trigger. Used for New Project, New Release, Deploy.",
+      "html": "<button class=\"ds-btn-primary\">New project</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; background: oklch(22% 0.03 250); color: oklch(97% 0.004 240); font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1.4; letter-spacing: normal; padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; transition: background 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: oklch(30% 0.03 250); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(22% 0.03 250); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action alongside a primary. Used for Cancel, Edit, View.",
+      "html": "<button class=\"ds-btn-outline\">View releases</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; gap: 6px; background: transparent; color: oklch(12% 0.025 250); font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1.4; padding: 7px 14px; border: 1px solid oklch(90% 0.010 240); border-radius: 5px; cursor: pointer; transition: background 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-outline:hover { background: oklch(95.5% 0.008 240); } .ds-btn-outline:focus-visible { outline: 2px solid oklch(22% 0.03 250); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Tertiary action, lowest visual priority. Used for dismiss, collapse, icon-only actions.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 6px; background: transparent; color: oklch(48% 0.018 250); font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; line-height: 1.4; padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; transition: background 120ms cubic-bezier(0.16, 1, 0.3, 1), color 120ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-ghost:hover { background: oklch(95.5% 0.008 240); color: oklch(12% 0.025 250); } .ds-btn-ghost:focus-visible { outline: 2px solid oklch(22% 0.03 250); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Chip — Healthy",
+      "kind": "chip",
+      "refersTo": "status-healthy",
+      "description": "Deployment healthy, build succeeded. Dot + label, never color alone.",
+      "html": "<span class=\"ds-chip ds-chip-healthy\"><span class=\"ds-chip-dot\"></span>Healthy</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; padding: 3px 8px; border-radius: 3px; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-chip-healthy { background: oklch(97% 0.03 145); color: oklch(38% 0.13 145); } .ds-chip-healthy .ds-chip-dot { background: oklch(52% 0.13 145); }"
+    },
+    {
+      "name": "Status Chip — Building",
+      "kind": "chip",
+      "refersTo": "status-building",
+      "description": "Build running, deployment deploying. Dot pulses at 2s when active.",
+      "html": "<span class=\"ds-chip ds-chip-building\"><span class=\"ds-chip-dot ds-chip-dot-pulse\"></span>Building</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; padding: 3px 8px; border-radius: 3px; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-chip-building { background: oklch(97% 0.03 230); color: oklch(42% 0.13 230); } .ds-chip-building .ds-chip-dot { background: oklch(55% 0.13 230); } @keyframes ds-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } } .ds-chip-dot-pulse { animation: ds-dot-pulse 2s ease-in-out infinite; } @media (prefers-reduced-motion: reduce) { .ds-chip-dot-pulse { animation: none; } }"
+    },
+    {
+      "name": "Status Chip — Failed",
+      "kind": "chip",
+      "refersTo": "status-failed",
+      "description": "Deployment failed or rolled back. Serious but not alarming.",
+      "html": "<span class=\"ds-chip ds-chip-failed\"><span class=\"ds-chip-dot\"></span>Failed</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; padding: 3px 8px; border-radius: 3px; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-chip-failed { background: oklch(97% 0.05 28); color: oklch(40% 0.18 28); } .ds-chip-failed .ds-chip-dot { background: oklch(52% 0.18 28); }"
+    },
+    {
+      "name": "Status Chip — Pending",
+      "kind": "chip",
+      "refersTo": "status-pending",
+      "description": "Build queued, waiting to start.",
+      "html": "<span class=\"ds-chip ds-chip-pending\"><span class=\"ds-chip-dot\"></span>Pending</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 500; line-height: 1.4; letter-spacing: 0.01em; padding: 3px 8px; border-radius: 3px; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; } .ds-chip-pending { background: oklch(97% 0.04 75); color: oklch(42% 0.12 75); } .ds-chip-pending .ds-chip-dot { background: oklch(58% 0.12 75); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Primary surface container. Project cards on the list view.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">my-app</div><div class=\"ds-card-meta\">octocat / my-app</div><div class=\"ds-card-footer\">Branch: main</div></div>",
+      "css": ".ds-card { background: oklch(98.5% 0.007 240); border: 1px solid oklch(90% 0.010 240); border-radius: 8px; padding: 16px; cursor: pointer; transition: box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-card:hover { box-shadow: 0 1px 3px rgba(14, 17, 23, 0.08), 0 1px 2px rgba(14, 17, 23, 0.04); border-color: oklch(82% 0.012 240); } .ds-card-title { font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 500; color: oklch(12% 0.025 250); line-height: 1.4; } .ds-card-meta { font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 400; color: oklch(48% 0.018 250); margin-top: 2px; } .ds-card-footer { font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; font-weight: 400; color: oklch(48% 0.018 250); margin-top: 12px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Form fields: project slug, GitHub owner, branch, dockerfile path, etc.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\">GitHub repository</label><input class=\"ds-input\" type=\"text\" placeholder=\"octocat/my-app\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 5px; } .ds-label { font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 500; color: oklch(12% 0.025 250); } .ds-input { font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 400; color: oklch(12% 0.025 250); background: transparent; border: 1px solid oklch(90% 0.010 240); border-radius: 5px; padding: 7px 12px; width: 100%; transition: border-color 120ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-input::placeholder { color: oklch(48% 0.018 250); } .ds-input:focus { outline: none; border-color: oklch(22% 0.03 250); } .ds-input:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Sidebar Navigation",
+      "kind": "nav",
+      "description": "Left sidebar with logo, primary nav, and version footer.",
+      "html": "<aside class=\"ds-sidebar\"><div class=\"ds-sidebar-logo\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17l2-11 7 4 7-4 2 11-9 5-9-5z\"/><circle cx=\"12\" cy=\"4\" r=\"2\"/></svg><span>Dockyard</span></div><nav class=\"ds-sidebar-nav\"><a href=\"#\" class=\"ds-nav-item ds-nav-item-active\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/></svg>Projects</a><a href=\"#\" class=\"ds-nav-item\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"3\" width=\"20\" height=\"14\" rx=\"2\"/><line x1=\"8\" y1=\"21\" x2=\"16\" y2=\"21\"/><line x1=\"12\" y1=\"17\" x2=\"12\" y2=\"21\"/></svg>Runtime Targets</a></nav><div class=\"ds-sidebar-footer\">Dockyard v0.1</div></aside>",
+      "css": ".ds-sidebar { display: flex; flex-direction: column; width: 224px; height: 100%; background: oklch(98.5% 0.007 240); border-right: 1px solid oklch(90% 0.010 240); } .ds-sidebar-logo { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px; border-bottom: 1px solid oklch(90% 0.010 240); font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; color: oklch(12% 0.025 250); } .ds-sidebar-nav { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 2px; } .ds-nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 5px; font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.875rem; font-weight: 400; color: oklch(48% 0.018 250); text-decoration: none; transition: background 120ms cubic-bezier(0.16, 1, 0.3, 1), color 120ms cubic-bezier(0.16, 1, 0.3, 1); position: relative; } .ds-nav-item:hover { background: oklch(95.5% 0.008 240); color: oklch(12% 0.025 250); } .ds-nav-item-active { background: oklch(95.5% 0.008 240); color: oklch(12% 0.025 250); font-weight: 500; box-shadow: inset 3px 0 0 oklch(22% 0.03 250); } .ds-sidebar-footer { padding: 12px 16px; border-top: 1px solid oklch(90% 0.010 240); font-family: Inter Variable, Inter, system-ui, sans-serif; font-size: 0.75rem; color: oklch(48% 0.018 250); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Panel",
+    "overview": "Dockyard's visual language is borrowed from precision instruments — cockpit gauges, a ship's control console, a well-maintained server rack with a clear status indicator per unit. The interface is calibrated, not decorated. Nothing is there to impress; everything is there because it earns its position. The whitespace is structural. The typography is exacting. The one accent color is architectural: it holds weight without noise.\n\nEvery screen's primary job is to surface state. Are the deployments healthy? Is the build running? Did something fail? That information occupies the visual foreground. Navigation, labels, and structural chrome recede into a quiet cool-white surface. Status signals are the only elements that speak with color — and they speak sparingly, with icon and text alongside the color so the signal is never ambiguous.\n\nThe system rejects four failure modes by name: the chart-first density of Grafana, the LED-traffic-light palette of ops dashboards, the startup marketing feel of SaaS cream, and the monospaced-everything of a terminal emulator aesthetic. Dockyard is none of these. It is a professional tool with one user who needs to confirm the state of their infrastructure and act on it.",
+    "keyCharacteristics": [
+      "Light canvas, cool-white with a barely perceptible blue undertone",
+      "One primary color (warm graphite, near-black) for actions and controls",
+      "Status signals use four semantic colors — subdued, never fluorescent",
+      "Medium density: structured whitespace, not sprawl",
+      "Inter Variable throughout, weight contrast carries hierarchy",
+      "Flat by default — elevation appears only under active layers"
+    ],
+    "rules": [
+      { "name": "The One Signal Rule", "body": "Status colors exist for status. Do not use Healthy Green as a brand accent, do not use Building Blue for decorative elements, do not borrow Failed Red for emphasis. Their meaning is fixed to deployment state; diluting that meaning costs comprehension speed.", "section": "colors" },
+      { "name": "The Chroma Ceiling Rule", "body": "No color in this system exceeds chroma 0.18. Even the semantic reds and greens are desaturated relative to their hue's maximum. Saturation is spent on legibility, not visual impact.", "section": "colors" },
+      { "name": "The Tabular Figures Rule", "body": "Any number in a data context — version strings, port numbers, commit SHAs, timestamps in tables — must use font-variant-numeric: tabular-nums. Proportional numbers in tables cause column misalignment and look unfinished.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadows appear only as a response to state (hover, overlay, focus). A resting card has no shadow — only a 1px border in Panel Border color. Adding shadows to resting elements is prohibited.", "section": "elevation" },
+      { "name": "The Color-Is-Never-Alone Rule", "body": "Every status chip shows dot + text. Color is the quick-scan signal; text is the accessible, unambiguous reading. Chips that show color without text are prohibited.", "section": "components" }
+    ],
+    "dos": [
+      "Do use font-variant-numeric: tabular-nums on all numbers in table cells, version strings, port values, and timestamps.",
+      "Do show status with dot + text together — never color alone, never text without a color signal.",
+      "Do let the border (not a shadow) define a card at rest. Add the Raised shadow on hover only.",
+      "Do use Surface Muted (oklch(95.5% 0.008 240)) as the hover background for interactive rows, nav items, and ghost buttons.",
+      "Do tint the canvas. oklch(98.5% 0.007 240) is the background, not #ffffff.",
+      "Do respect prefers-reduced-motion. The building/deploying status dot pulse must be suppressed."
+    ],
+    "donts": [
+      "Don't use chart-first layouts, metric dashboards, or data-visualization palette approaches. Dockyard is not Grafana.",
+      "Don't use gradient backgrounds, gradient text (background-clip: text), or glass effects. These are SaaS marketing patterns.",
+      "Don't use monospaced typefaces as the primary typeface. Mono is appropriate for commit SHAs, CLI output, and code values only.",
+      "Don't use side-stripe border accents on cards or list items outside the intentional nav active state.",
+      "Don't use a rainbow of brand colors. Instrument Graphite is the one brand color.",
+      "Don't use fluorescent, high-chroma versions of the status colors. The Chroma Ceiling Rule applies.",
+      "Don't stack cards. Nested cards are always wrong.",
+      "Don't add shadows on resting surfaces. The Flat-By-Default Rule is absolute.",
+      "Don't use empty-state animations or loading skeleton animations with bouncing/elastic curves.",
+      "Don't use the Portainer / Docker Desktop visual language: icon-heavy nav, grey sidebar, badge-colored everything."
+    ]
+  }
+}

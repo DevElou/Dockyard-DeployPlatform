@@ -7,19 +7,19 @@ import (
 )
 
 type Deployment struct {
-	ID                     string
-	ProjectID              string
-	ReleaseID              string
-	RuntimeTargetID        string
-	ProjectServiceID       *string
-	EnvironmentSetID       *string
-	Status                 DeploymentStatus
-	Strategy               string
-	TriggeredByUserID      *string
-	RollbackOfDeploymentID *string
-	StartedAt              *time.Time
-	FinishedAt             *time.Time
-	CreatedAt              time.Time
+	ID                     string           `json:"id"`
+	ProjectID              string           `json:"projectId"`
+	ReleaseID              string           `json:"releaseId"`
+	RuntimeTargetID        string           `json:"runtimeTargetId"`
+	ProjectServiceID       *string          `json:"projectServiceId"`
+	EnvironmentSetID       *string          `json:"environmentSetId"`
+	Status                 DeploymentStatus `json:"status"`
+	Strategy               string           `json:"strategy"`
+	TriggeredByUserID      *string          `json:"triggeredByUserId"`
+	RollbackOfDeploymentID *string          `json:"rollbackOfDeploymentId"`
+	StartedAt              *time.Time       `json:"startedAt"`
+	FinishedAt             *time.Time       `json:"finishedAt"`
+	CreatedAt              time.Time        `json:"createdAt"`
 }
 
 func (d Deployment) Validate() error {
@@ -36,15 +36,15 @@ func (d Deployment) Validate() error {
 }
 
 type Domain struct {
-	ID               string
-	ProjectID        string
-	ProjectServiceID *string
-	Hostname         string
-	BaseDomain       string
-	Provider         string
-	RoutingType      string
-	TLSEnabled       bool
-	Status           DomainStatus
+	ID               string       `json:"id"`
+	ProjectID        string       `json:"projectId"`
+	ProjectServiceID *string      `json:"projectServiceId"`
+	Hostname         string       `json:"hostname"`
+	BaseDomain       string       `json:"baseDomain"`
+	Provider         string       `json:"provider"`
+	RoutingType      string       `json:"routingType"`
+	TLSEnabled       bool         `json:"tlsEnabled"`
+	Status           DomainStatus `json:"status"`
 }
 
 func (d Domain) Validate() error {
@@ -61,15 +61,15 @@ func (d Domain) Validate() error {
 }
 
 type EnvironmentVariable struct {
-	ID               string
-	EnvironmentSetID string
-	Key              string
-	Value            string
-	IsSecret         bool
+	ID               string `json:"id"`
+	EnvironmentSetID string `json:"environmentSetId"`
+	Key              string `json:"key"`
+	Value            string `json:"value"`
+	IsSecret         bool   `json:"isSecret"`
 }
 
 type EnvironmentSet struct {
-	ID        string
-	ProjectID string
-	Name      string
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	Name      string `json:"name"`
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/elouan/dockyard/internal/adapters/github"
 	"github.com/elouan/dockyard/internal/adapters/httpapi"
+	"github.com/elouan/dockyard/internal/adapters/nginxproxymanager"
 	"github.com/elouan/dockyard/internal/adapters/postgres"
 	deploymentapp "github.com/elouan/dockyard/internal/application/deployment"
 	domainsvc "github.com/elouan/dockyard/internal/application/domainsvc"
@@ -19,6 +20,7 @@ import (
 	projectserviceapp "github.com/elouan/dockyard/internal/application/projectservice"
 	releaseapp "github.com/elouan/dockyard/internal/application/release"
 	runtimetargetapp "github.com/elouan/dockyard/internal/application/runtimetarget"
+	"github.com/elouan/dockyard/internal/ports/routing"
 )
 
 func main() {
@@ -38,6 +40,22 @@ func main() {
 	}
 	defer pool.Close()
 
+	npmCfg, npmEnabled, err := nginxproxymanager.LoadConfigFromEnv()
+	if err != nil {
+		log.Fatalf("npm config: %v", err)
+	}
+	var routingProvider routing.Provider
+	if npmEnabled {
+		p, err := nginxproxymanager.NewProvider(npmCfg)
+		if err != nil {
+			log.Fatalf("npm provider: %v", err)
+		}
+		routingProvider = p
+		log.Printf("npm routing enabled: %s", npmCfg.BaseURL)
+	} else {
+		routingProvider = &nginxproxymanager.NoopProvider{}
+	}
+
 	githubToken := mustEnv("DOCKYARD_GITHUB_TOKEN")
 	projectRepo := postgres.NewProjectRepository(pool)
 	src := github.NewSourceProvider(githubToken, projectRepo)
@@ -47,7 +65,7 @@ func main() {
 		RuntimeTargetService:  runtimetargetapp.NewService(postgres.NewRuntimeTargetRepository(pool)),
 		ReleaseService:        releaseapp.NewService(postgres.NewReleaseRepository(pool), src),
 		DeploymentService:     deploymentapp.NewService(postgres.NewDeploymentRepository(pool)),
-		DomainService:         domainsvc.NewService(postgres.NewDomainRepository(pool)),
+		DomainService:         domainsvc.NewService(postgres.NewDomainRepository(pool), routingProvider),
 		ProjectServiceService: projectserviceapp.NewService(postgres.NewProjectServiceRepository(pool)),
 		EnvironmentService:    envapp.NewService(postgres.NewEnvironmentSetRepository(pool), postgres.NewEnvironmentVariableRepository(pool)),
 	})

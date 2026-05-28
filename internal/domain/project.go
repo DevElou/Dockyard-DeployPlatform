@@ -6,39 +6,39 @@ import (
 )
 
 type Project struct {
-	ID                   string
-	Slug                 string
-	Name                 string
-	Status               ProjectStatus
-	GitHubOwner          string
-	GitHubRepo           string
-	DefaultBranch        string
-	RootDirectory        string
-	DockerfilePath       string
-	BuildContext         string
-	DefaultEnvironmentID string
+	ID                   string        `json:"id"`
+	Slug                 string        `json:"slug"`
+	Name                 string        `json:"name"`
+	Status               ProjectStatus `json:"status"`
+	GitHubOwner          string        `json:"githubOwner"`
+	GitHubRepo           string        `json:"githubRepo"`
+	DefaultBranch        string        `json:"defaultBranch"`
+	RootDirectory        string        `json:"rootDirectory"`
+	DockerfilePath       string        `json:"dockerfilePath"`
+	BuildContext         string        `json:"buildContext"`
+	DefaultEnvironmentID string        `json:"defaultEnvironmentId"`
 }
 
 type RuntimeTarget struct {
-	ID           string
-	Slug         string
-	Name         string
-	RuntimeType  RuntimeType
-	Endpoint     string
-	AgentKeyHash string
-	ServerGroup  *string
-	Region       *string
-	Enabled      bool
+	ID           string      `json:"id"`
+	Slug         string      `json:"slug"`
+	Name         string      `json:"name"`
+	RuntimeType  RuntimeType `json:"runtimeType"`
+	Endpoint     string      `json:"endpoint"`
+	AgentKeyHash string      `json:"-"`
+	ServerGroup  *string     `json:"serverGroup"`
+	Region       *string     `json:"region"`
+	Enabled      bool        `json:"enabled"`
 }
 
 type ProjectService struct {
-	ID              string
-	ProjectID       string
-	Name            string
-	ContainerPort   int
-	HealthcheckPath string
-	HealthcheckPort int
-	RoutingEnabled  bool
+	ID              string `json:"id"`
+	ProjectID       string `json:"projectId"`
+	Name            string `json:"name"`
+	ContainerPort   int    `json:"containerPort"`
+	HealthcheckPath string `json:"healthcheckPath"`
+	HealthcheckPort int    `json:"healthcheckPort"`
+	RoutingEnabled  bool   `json:"routingEnabled"`
 }
 
 func (p Project) Validate() error {

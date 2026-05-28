@@ -98,6 +98,42 @@ func (r *DomainRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func (r *DomainRepository) ListByProjectService(ctx context.Context, projectServiceID string) ([]domain.Domain, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::TEXT, project_id::TEXT, project_service_id::TEXT,
+		       hostname, base_domain, provider, routing_type, tls_enabled, status
+		FROM domains
+		WHERE project_service_id = $1::UUID
+		ORDER BY created_at DESC
+	`, projectServiceID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list domains by service: %w", err)
+	}
+	defer rows.Close()
+
+	domains, err := pgx.CollectRows(rows, scanDomain)
+	if err != nil {
+		return nil, fmt.Errorf("postgres: list domains by service: %w", err)
+	}
+	if domains == nil {
+		return []domain.Domain{}, nil
+	}
+	return domains, nil
+}
+
+func (r *DomainRepository) UpdateStatus(ctx context.Context, id string, status domain.DomainStatus) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE domains SET status = $1, updated_at = now() WHERE id = $2::UUID
+	`, string(status), id)
+	if err != nil {
+		return fmt.Errorf("postgres: update domain status: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrDomainNotFound
+	}
+	return nil
+}
+
 func scanDomain(row pgx.CollectableRow) (domain.Domain, error) {
 	var d domain.Domain
 	var status string

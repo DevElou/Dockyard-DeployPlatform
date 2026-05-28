@@ -2,18 +2,21 @@ package domainsvc
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/repository"
+	"github.com/elouan/dockyard/internal/ports/routing"
 )
 
 type Service struct {
 	domains repository.DomainRepository
+	routing routing.Provider
 }
 
-func NewService(domains repository.DomainRepository) *Service {
-	return &Service{domains: domains}
+func NewService(domains repository.DomainRepository, r routing.Provider) *Service {
+	return &Service{domains: domains, routing: r}
 }
 
 type CreateDomainInput struct {
@@ -58,7 +61,17 @@ func (s *Service) GetByID(ctx context.Context, id string) (domain.Domain, error)
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
-	return s.domains.Delete(ctx, id)
+	d, err := s.domains.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.domains.Delete(ctx, id); err != nil {
+		return err
+	}
+	if err := s.routing.DeleteRoute(d.Hostname); err != nil {
+		log.Printf("domainsvc: delete route %s: %v", d.Hostname, err)
+	}
+	return nil
 }
 
 func defaultString(value string, fallback string) string {

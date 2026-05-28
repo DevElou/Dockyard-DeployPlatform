@@ -1,9 +1,42 @@
-.gocache
-bin
-dist
-web/node_modules
-web/.next
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local environment files
 .env
+.env.*
+!.env.example
+!.env.*.example
+!web/.env.local.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Go
+.gocache/
+bin/
+dist/
+coverage.out
+*.test
 control-plane-api
 orchestrator-worker
 deploy-agent
+
+# Frontend
+web/node_modules/
+web/.next/
+web/out/
+web/dist/
+web/.turbo/
+web/.env.local
+
+# Build / runtime scratch
+tmp/
+*.tmp

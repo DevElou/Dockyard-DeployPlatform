@@ -11,9 +11,11 @@ import (
 	"github.com/elouan/dockyard/internal/adapters/dockerregistry"
 	"github.com/elouan/dockyard/internal/adapters/github"
 	"github.com/elouan/dockyard/internal/adapters/httpclient"
+	"github.com/elouan/dockyard/internal/adapters/nginxproxymanager"
 	"github.com/elouan/dockyard/internal/adapters/postgres"
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/agent"
+	"github.com/elouan/dockyard/internal/ports/routing"
 )
 
 func main() {
@@ -42,6 +44,23 @@ func main() {
 		return httpclient.NewAgentClient(target.Endpoint, agentKey), nil
 	}
 
+	npmCfg, npmEnabled, err := nginxproxymanager.LoadConfigFromEnv()
+	if err != nil {
+		log.Fatalf("npm config: %v", err)
+	}
+	var routingProvider routing.Provider
+	if npmEnabled {
+		p, err := nginxproxymanager.NewProvider(npmCfg)
+		if err != nil {
+			log.Fatalf("npm provider: %v", err)
+		}
+		routingProvider = p
+		log.Printf("npm routing enabled: %s", npmCfg.BaseURL)
+	} else {
+		routingProvider = &nginxproxymanager.NoopProvider{}
+		log.Println("npm routing disabled (DOCKYARD_NPM_URL not set)")
+	}
+
 	projectRepo := postgres.NewProjectRepository(pool)
 	src := github.NewSourceProvider(githubToken, projectRepo)
 	builder := dockerregistry.NewBuilder(registryURL)
@@ -61,6 +80,8 @@ func main() {
 		postgres.NewProjectServiceRepository(pool),
 		postgres.NewEnvironmentSetRepository(pool),
 		postgres.NewEnvironmentVariableRepository(pool),
+		postgres.NewDomainRepository(pool),
+		routingProvider,
 		factory,
 	)
 
