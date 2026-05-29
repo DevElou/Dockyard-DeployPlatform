@@ -9,6 +9,7 @@ RUN go build -o /out/deploy-agent ./cmd/deploy-agent
 
 FROM alpine:3.21
 WORKDIR /app
+RUN apk add --no-cache docker-cli
 COPY --from=builder /out/deploy-agent /usr/local/bin/deploy-agent
 EXPOSE 8090
 ENTRYPOINT ["deploy-agent"]

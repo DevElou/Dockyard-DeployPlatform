@@ -9,5 +9,7 @@ RUN go build -o /out/orchestrator-worker ./cmd/orchestrator-worker
 
 FROM alpine:3.21
 WORKDIR /app
+RUN apk add --no-cache docker-cli docker-cli-buildx
+ENV DOCKER_BUILDKIT=1
 COPY --from=builder /out/orchestrator-worker /usr/local/bin/orchestrator-worker
 ENTRYPOINT ["orchestrator-worker"]

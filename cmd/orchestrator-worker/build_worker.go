@@ -150,28 +150,100 @@ func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.Bui
 		return registry.BuildResult{}, fmt.Errorf("download archive: %w", err)
 	}
 
-	dockerfilePath, err := safeJoin(workDir, project.DockerfilePath)
+	buildContext, dockerfilePath, err := resolveBuildPaths(workDir, project)
 	if err != nil {
-		return registry.BuildResult{}, fmt.Errorf("dockerfile path: %w", err)
+		return registry.BuildResult{}, fmt.Errorf("resolve build paths: %w", err)
 	}
 
 	w.events.Info(ctx, domain.OperationResourceRelease, r.ID, phaseBuildBuildingImage,
 		"building and pushing Docker image",
-		map[string]string{"dockerfile": project.DockerfilePath})
+		map[string]string{
+			"rootDirectory":  project.RootDirectory,
+			"buildContext":   project.BuildContext,
+			"dockerfilePath": project.DockerfilePath,
+		})
 
 	return w.builder.BuildAndPush(ctx, registry.BuildRequest{
 		ProjectID:      r.ProjectID,
 		ReleaseVersion: r.Version,
 		CommitSHA:      r.GitSHA,
-		BuildContext:   workDir,
+		BuildContext:   buildContext,
 		DockerfilePath: dockerfilePath,
 	})
 }
 
+func resolveBuildPaths(workDir string, project domain.Project) (string, string, error) {
+	rootDir, err := safeJoin(workDir, defaultBuildPath(project.RootDirectory))
+	if err != nil {
+		return "", "", fmt.Errorf("root directory: %w", err)
+	}
+
+	buildContext, err := safeJoin(rootDir, defaultBuildPath(project.BuildContext))
+	if err != nil {
+		return "", "", fmt.Errorf("build context: %w", err)
+	}
+
+	if st, err := os.Stat(buildContext); err != nil {
+		return "", "", fmt.Errorf("build context %q: %w", project.BuildContext, err)
+	} else if !st.IsDir() {
+		return "", "", fmt.Errorf("build context %q is not a directory", project.BuildContext)
+	}
+
+	dockerfilePath, tried, err := resolveDockerfilePath(rootDir, buildContext, defaultBuildPath(project.DockerfilePath))
+	if err != nil {
+		return "", "", fmt.Errorf("dockerfile %q not found (tried: %s)", project.DockerfilePath, strings.Join(tried, ", "))
+	}
+
+	return buildContext, dockerfilePath, nil
+}
+
+func resolveDockerfilePath(rootDir, buildContext, dockerfileRel string) (string, []string, error) {
+	var tried []string
+	for _, base := range uniquePaths(buildContext, rootDir) {
+		candidate, err := safeJoin(base, dockerfileRel)
+		if err != nil {
+			return "", tried, err
+		}
+		tried = append(tried, candidate)
+		if st, err := os.Stat(candidate); err == nil && !st.IsDir() {
+			return candidate, tried, nil
+		}
+	}
+	return "", tried, os.ErrNotExist
+}
+
+func uniquePaths(paths ...string) []string {
+	seen := make(map[string]struct{}, len(paths))
+	unique := make([]string, 0, len(paths))
+	for _, p := range paths {
+		p = filepath.Clean(p)
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		unique = append(unique, p)
+	}
+	return unique
+}
+
+func defaultBuildPath(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "."
+	}
+	return value
+}
+
 // safeJoin joins base and rel, returning an error if the result escapes base.
 func safeJoin(base, rel string) (string, error) {
-	joined := filepath.Join(base, filepath.Clean(rel))
-	if !strings.HasPrefix(joined, filepath.Clean(base)+string(os.PathSeparator)) {
+	rel = filepath.Clean(filepath.FromSlash(strings.TrimSpace(rel)))
+	if filepath.IsAbs(rel) {
+		return "", fmt.Errorf("path %q must be relative", rel)
+	}
+
+	joined := filepath.Clean(filepath.Join(base, rel))
+	cleanBase := filepath.Clean(base)
+	if joined != cleanBase && !strings.HasPrefix(joined, cleanBase+string(os.PathSeparator)) {
 		return "", fmt.Errorf("path %q escapes work directory", rel)
 	}
 	return joined, nil
