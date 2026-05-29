@@ -12,12 +12,24 @@ export const queryKeys = {
     list: (projectId: string) => ["projects", projectId, "releases"] as const,
     detail: (projectId: string, releaseId: string) =>
       ["projects", projectId, "releases", releaseId] as const,
+    events: (projectId: string, releaseId: string) =>
+      ["projects", projectId, "releases", releaseId, "events"] as const,
   },
   deployments: {
     list: (projectId: string) =>
       ["projects", projectId, "deployments"] as const,
     detail: (projectId: string, deploymentId: string) =>
       ["projects", projectId, "deployments", deploymentId] as const,
+    events: (projectId: string, deploymentId: string) =>
+      ["projects", projectId, "deployments", deploymentId, "events"] as const,
+    containerLogs: (projectId: string, deploymentId: string) =>
+      [
+        "projects",
+        projectId,
+        "deployments",
+        deploymentId,
+        "container-logs",
+      ] as const,
   },
   services: {
     list: (projectId: string) => ["projects", projectId, "services"] as const,
@@ -32,5 +44,9 @@ export const queryKeys = {
   },
   domains: {
     list: (projectId: string) => ["projects", projectId, "domains"] as const,
+  },
+  system: {
+    info: () => ["system", "info"] as const,
+    health: () => ["system", "health"] as const,
   },
 } as const;

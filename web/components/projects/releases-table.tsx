@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Table,
   TableBody,
@@ -12,9 +14,10 @@ import type { Release } from "@/lib/types/release";
 
 interface ReleasesTableProps {
   items: Release[];
+  onSelect?: (release: Release) => void;
 }
 
-export function ReleasesTable({ items }: ReleasesTableProps) {
+export function ReleasesTable({ items, onSelect }: ReleasesTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -28,7 +31,11 @@ export function ReleasesTable({ items }: ReleasesTableProps) {
       </TableHeader>
       <TableBody>
         {items.map((r) => (
-          <TableRow key={r.id}>
+          <TableRow
+            key={r.id}
+            onClick={onSelect ? () => onSelect(r) : undefined}
+            className={onSelect ? "cursor-pointer" : undefined}
+          >
             <TableCell className="font-mono text-sm">{r.version}</TableCell>
             <TableCell className="font-mono text-sm">{r.gitRef}</TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">

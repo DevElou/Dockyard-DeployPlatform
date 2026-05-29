@@ -27,6 +27,8 @@ coverage.out
 *.test
 control-plane-api
 orchestrator-worker
+!cmd/orchestrator-worker/
+!cmd/orchestrator-worker/build_worker_test.go
 deploy-agent
 
 # Frontend

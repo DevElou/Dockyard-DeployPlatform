@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Table,
   TableBody,
@@ -12,9 +14,10 @@ import type { Deployment } from "@/lib/types/deployment";
 
 interface DeploymentsTableProps {
   items: Deployment[];
+  onSelect?: (deployment: Deployment) => void;
 }
 
-export function DeploymentsTable({ items }: DeploymentsTableProps) {
+export function DeploymentsTable({ items, onSelect }: DeploymentsTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -29,7 +32,11 @@ export function DeploymentsTable({ items }: DeploymentsTableProps) {
       </TableHeader>
       <TableBody>
         {items.map((d) => (
-          <TableRow key={d.id}>
+          <TableRow
+            key={d.id}
+            onClick={onSelect ? () => onSelect(d) : undefined}
+            className={onSelect ? "cursor-pointer" : undefined}
+          >
             <TableCell>
               <DeploymentStatusBadge status={d.status} />
             </TableCell>

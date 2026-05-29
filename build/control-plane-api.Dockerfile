@@ -1,11 +1,13 @@
 FROM golang:1.25-alpine AS builder
 
+ARG VERSION=dev
+
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
-RUN go build -o /out/control-plane-api ./cmd/control-plane-api
+RUN go build -ldflags "-X main.version=${VERSION}" -o /out/control-plane-api ./cmd/control-plane-api
 
 FROM alpine:3.21
 WORKDIR /app

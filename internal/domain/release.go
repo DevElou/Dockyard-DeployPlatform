@@ -17,7 +17,7 @@ type Release struct {
 	ImageTag        string      `json:"imageTag"`
 	ImageDigest     string      `json:"imageDigest"`
 	BuildStatus     BuildStatus `json:"buildStatus"`
-	CreatedByUserID *string     `json:"createdByUserId"`
+	CreatedByUserID *string     `json:"createdByUserId,omitempty"`
 	CreatedAt       time.Time   `json:"createdAt"`
 }
 

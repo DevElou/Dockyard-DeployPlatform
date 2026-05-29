@@ -10,11 +10,23 @@ import (
 	"time"
 
 	"github.com/elouan/dockyard/internal/adapters/postgres"
+	"github.com/elouan/dockyard/internal/application/operationlog"
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/agent"
 	"github.com/elouan/dockyard/internal/ports/repository"
 	"github.com/elouan/dockyard/internal/ports/routing"
 	"github.com/elouan/dockyard/internal/ports/runtime"
+)
+
+// Deployment phases — kept narrow so the UI timeline reads naturally.
+const (
+	phaseDeployQueued          = "queued"
+	phaseDeployBuildingSpec    = "building_spec"
+	phaseDeployContactingAgent = "contacting_agent"
+	phaseDeployHealthCheck     = "health_check"
+	phaseDeployRouting         = "routing"
+	phaseDeployHealthy         = "healthy"
+	phaseDeployFailed          = "failed"
 )
 
 // AgentClientFactory returns an agent.Client given a RuntimeTarget.
@@ -31,6 +43,7 @@ type DeployWorker struct {
 	domains         repository.DomainRepository
 	routing         routing.Provider
 	agentClients    AgentClientFactory
+	events          *operationlog.Service
 	inFlight        sync.Map // deploymentID → struct{}
 }
 
@@ -45,6 +58,7 @@ func NewDeployWorker(
 	domains repository.DomainRepository,
 	routingProvider routing.Provider,
 	factory AgentClientFactory,
+	events *operationlog.Service,
 ) *DeployWorker {
 	return &DeployWorker{
 		deployments:     deployments,
@@ -57,6 +71,7 @@ func NewDeployWorker(
 		domains:         domains,
 		routing:         routingProvider,
 		agentClients:    factory,
+		events:          events,
 	}
 }
 
@@ -100,16 +115,25 @@ func (w *DeployWorker) tick(ctx context.Context, wg *sync.WaitGroup) {
 
 func (w *DeployWorker) processDeployment(ctx context.Context, d domain.Deployment) {
 	log.Printf("deploy-worker: processing deployment %s", d.ID)
+	w.events.Info(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployQueued,
+		"deploy worker picked up deployment", nil)
 
 	now := time.Now()
 	if err := w.deployments.UpdateStatus(ctx, d.ID, domain.DeploymentStatusDeploying, &now, nil); err != nil {
 		log.Printf("deploy-worker: claim deployment %s: %v", d.ID, err)
+		w.events.Error(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployFailed,
+			"failed to mark deployment as deploying", map[string]string{"error": err.Error()})
 		return
 	}
+
+	w.events.Info(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployBuildingSpec,
+		"resolving release, service spec and environment", nil)
 
 	spec, err := w.buildSpec(ctx, d)
 	if err != nil {
 		log.Printf("deploy-worker: build spec for deployment %s: %v", d.ID, err)
+		w.events.Error(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployFailed,
+			"failed to build deployment spec", map[string]string{"error": truncate(err.Error(), 4000)})
 		w.fail(d.ID)
 		return
 	}
@@ -117,6 +141,8 @@ func (w *DeployWorker) processDeployment(ctx context.Context, d domain.Deploymen
 	target, err := w.runtimeTargets.GetByID(ctx, d.RuntimeTargetID)
 	if err != nil {
 		log.Printf("deploy-worker: get runtime target %s: %v", d.RuntimeTargetID, err)
+		w.events.Error(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployFailed,
+			"runtime target not found", map[string]string{"error": err.Error()})
 		w.fail(d.ID)
 		return
 	}
@@ -124,22 +150,35 @@ func (w *DeployWorker) processDeployment(ctx context.Context, d domain.Deploymen
 	agentClient, err := w.agentClients(target)
 	if err != nil {
 		log.Printf("deploy-worker: get agent client for target %s: %v", target.ID, err)
+		w.events.Error(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployFailed,
+			"failed to build agent client", map[string]string{"error": err.Error()})
 		w.fail(d.ID)
 		return
 	}
 
+	w.events.Info(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployContactingAgent,
+		"sending deployment spec to agent",
+		map[string]string{"target": target.Slug, "endpoint": target.Endpoint, "image": specImageRef(spec)})
+
 	resp, err := agentClient.Deploy(ctx, agent.DeployRequest{Spec: spec})
 	if err != nil {
 		log.Printf("deploy-worker: send deploy request for %s: %v", d.ID, err)
+		w.events.Error(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployFailed,
+			"agent unreachable", map[string]string{"error": err.Error()})
 		w.fail(d.ID)
 		return
 	}
 
 	if !resp.Accepted {
 		log.Printf("deploy-worker: deploy %s not accepted by agent", d.ID)
+		w.events.Error(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployFailed,
+			"deployment not accepted by agent", nil)
 		w.fail(d.ID)
 		return
 	}
+
+	w.events.Info(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployHealthCheck,
+		"polling agent for container health", nil)
 
 	if w.waitForCompletion(ctx, d.ID, agentClient) {
 		w.configureRouting(ctx, d, target)
@@ -157,6 +196,8 @@ func (w *DeployWorker) waitForCompletion(ctx context.Context, deploymentID strin
 		select {
 		case <-pollCtx.Done():
 			log.Printf("deploy-worker: timeout waiting for deployment %s: %v", deploymentID, pollCtx.Err())
+			w.events.Error(ctx, domain.OperationResourceDeployment, deploymentID, phaseDeployFailed,
+				"timeout waiting for healthy container", map[string]string{"error": pollCtx.Err().Error()})
 			w.fail(deploymentID)
 			return false
 		case <-ticker.C:
@@ -173,9 +214,15 @@ func (w *DeployWorker) waitForCompletion(ctx context.Context, deploymentID strin
 					log.Printf("deploy-worker: persist healthy status for %s: %v", deploymentID, err)
 				}
 				log.Printf("deploy-worker: deployment %s is healthy", deploymentID)
+				w.events.Success(ctx, domain.OperationResourceDeployment, deploymentID, phaseDeployHealthy,
+					"container is healthy",
+					map[string]string{"containerId": statusResp.Result.ContainerID})
 				return true
 			case domain.DeploymentStatusFailed:
 				log.Printf("deploy-worker: deployment %s failed: %s", deploymentID, statusResp.Result.Message)
+				w.events.Error(ctx, domain.OperationResourceDeployment, deploymentID, phaseDeployFailed,
+					"deployment reported failure",
+					map[string]string{"agentMessage": truncate(statusResp.Result.Message, 4000)})
 				w.fail(deploymentID)
 				return false
 			}
@@ -187,6 +234,8 @@ func (w *DeployWorker) configureRouting(ctx context.Context, d domain.Deployment
 	svc, err := w.resolveService(ctx, d)
 	if err != nil {
 		log.Printf("deploy-worker: routing: resolve service for deployment %s: %v", d.ID, err)
+		w.events.Warn(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployRouting,
+			"failed to resolve service for routing", map[string]string{"error": err.Error()})
 		return
 	}
 	if svc == nil || !svc.RoutingEnabled || svc.ContainerPort == 0 {
@@ -196,6 +245,8 @@ func (w *DeployWorker) configureRouting(ctx context.Context, d domain.Deployment
 	u, err := url.Parse(target.Endpoint)
 	if err != nil || u.Hostname() == "" {
 		log.Printf("deploy-worker: routing: parse endpoint %q: %v", target.Endpoint, err)
+		w.events.Warn(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployRouting,
+			"could not parse target endpoint", map[string]string{"endpoint": target.Endpoint})
 		return
 	}
 	forwardHost := u.Hostname()
@@ -203,6 +254,8 @@ func (w *DeployWorker) configureRouting(ctx context.Context, d domain.Deployment
 	domains, err := w.domains.ListByProjectService(ctx, svc.ID)
 	if err != nil {
 		log.Printf("deploy-worker: routing: list domains for service %s: %v", svc.ID, err)
+		w.events.Warn(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployRouting,
+			"failed to list domains for service", map[string]string{"error": err.Error()})
 		return
 	}
 
@@ -216,8 +269,14 @@ func (w *DeployWorker) configureRouting(ctx context.Context, d domain.Deployment
 		if err := w.routing.EnsureRoute(req); err != nil {
 			log.Printf("deploy-worker: routing: ensure route %s: %v", dom.Hostname, err)
 			_ = w.domains.UpdateStatus(ctx, dom.ID, domain.DomainStatusFailed)
+			w.events.Warn(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployRouting,
+				"failed to configure route",
+				map[string]string{"hostname": dom.Hostname, "error": err.Error()})
 		} else {
 			_ = w.domains.UpdateStatus(ctx, dom.ID, domain.DomainStatusReady)
+			w.events.Info(ctx, domain.OperationResourceDeployment, d.ID, phaseDeployRouting,
+				"route configured",
+				map[string]string{"hostname": dom.Hostname, "forwardHost": forwardHost})
 		}
 	}
 }
@@ -342,4 +401,14 @@ func (w *DeployWorker) fail(deploymentID string) {
 	if err := w.deployments.UpdateStatus(ctx, deploymentID, domain.DeploymentStatusFailed, nil, &now); err != nil {
 		log.Printf("deploy-worker: fail deployment %s: %v", deploymentID, err)
 	}
+}
+
+func specImageRef(spec runtime.DeploymentSpec) string {
+	if spec.Image.Digest != "" {
+		return spec.Image.Repository + "@" + spec.Image.Digest
+	}
+	if spec.Image.Tag != "" {
+		return spec.Image.Repository + ":" + spec.Image.Tag
+	}
+	return spec.Image.Repository
 }

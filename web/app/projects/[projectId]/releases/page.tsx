@@ -8,7 +8,9 @@ import { EmptyState } from "@/components/common/empty-state";
 import { DataGuard } from "@/components/common/data-guard";
 import { ReleasesTable } from "@/components/projects/releases-table";
 import { NewReleaseDialog } from "@/components/projects/new-release-dialog";
+import { ReleaseDetailsSheet } from "@/components/projects/release-details-sheet";
 import { useReleases } from "@/lib/hooks/use-releases";
+import type { Release } from "@/lib/types/release";
 
 export default function ReleasesPage({
   params,
@@ -17,7 +19,15 @@ export default function ReleasesPage({
 }) {
   const { projectId } = use(params);
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Release | null>(null);
   const query = useReleases(projectId);
+
+  // Keep the panel in sync with refreshed list data (status/digest may change
+  // while the panel is open).
+  const liveSelected =
+    selected && query.data
+      ? (query.data.items.find((r) => r.id === selected.id) ?? selected)
+      : selected;
 
   return (
     <div>
@@ -48,10 +58,21 @@ export default function ReleasesPage({
           </EmptyState>
         }
       >
-        {(data) => <ReleasesTable items={data.items} />}
+        {(data) => (
+          <ReleasesTable items={data.items} onSelect={setSelected} />
+        )}
       </DataGuard>
 
       <NewReleaseDialog projectId={projectId} open={open} onOpenChange={setOpen} />
+
+      <ReleaseDetailsSheet
+        projectId={projectId}
+        release={liveSelected}
+        open={selected !== null}
+        onOpenChange={(o) => {
+          if (!o) setSelected(null);
+        }}
+      />
     </div>
   );
 }

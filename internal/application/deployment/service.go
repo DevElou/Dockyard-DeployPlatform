@@ -5,16 +5,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elouan/dockyard/internal/application/operationlog"
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/repository"
 )
 
 type Service struct {
 	deployments repository.DeploymentRepository
+	events      *operationlog.Service
 }
 
-func NewService(deployments repository.DeploymentRepository) *Service {
-	return &Service{deployments: deployments}
+func NewService(deployments repository.DeploymentRepository, events *operationlog.Service) *Service {
+	return &Service{deployments: deployments, events: events}
 }
 
 type CreateDeploymentInput struct {
@@ -36,11 +38,11 @@ func (s *Service) List(ctx context.Context, projectID string) ([]domain.Deployme
 
 func (s *Service) Create(ctx context.Context, projectID string, input CreateDeploymentInput) (domain.Deployment, error) {
 	d := domain.Deployment{
-		ProjectID:       strings.TrimSpace(projectID),
-		ReleaseID:       strings.TrimSpace(input.ReleaseID),
-		RuntimeTargetID: strings.TrimSpace(input.RuntimeTargetID),
-		Strategy:        defaultString(input.Strategy, "recreate"),
-		Status:          domain.DeploymentStatusPending,
+		ProjectID:         strings.TrimSpace(projectID),
+		ReleaseID:         strings.TrimSpace(input.ReleaseID),
+		RuntimeTargetID:   strings.TrimSpace(input.RuntimeTargetID),
+		Strategy:          defaultString(input.Strategy, "recreate"),
+		Status:            domain.DeploymentStatusPending,
 		TriggeredByUserID: input.TriggeredByUser,
 	}
 
@@ -48,7 +50,21 @@ func (s *Service) Create(ctx context.Context, projectID string, input CreateDepl
 		return domain.Deployment{}, err
 	}
 
-	return s.deployments.Create(ctx, d)
+	created, err := s.deployments.Create(ctx, d)
+	if err != nil {
+		return domain.Deployment{}, err
+	}
+
+	if s.events != nil {
+		s.events.Info(ctx, domain.OperationResourceDeployment, created.ID, "queued",
+			"deployment created and waiting for worker",
+			map[string]string{
+				"releaseId":       created.ReleaseID,
+				"runtimeTargetId": created.RuntimeTargetID,
+				"strategy":        created.Strategy,
+			})
+	}
+	return created, nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (domain.Deployment, error) {
@@ -80,6 +96,13 @@ func (s *Service) Rollback(ctx context.Context, projectID, originalDeploymentID 
 
 func (s *Service) UpdateStatus(ctx context.Context, id string, input UpdateStatusInput) error {
 	return s.deployments.UpdateStatus(ctx, id, input.Status, input.StartedAt, input.FinishedAt)
+}
+
+func (s *Service) ListEvents(ctx context.Context, deploymentID string) ([]domain.OperationEvent, error) {
+	if s.events == nil {
+		return []domain.OperationEvent{}, nil
+	}
+	return s.events.ListForResource(ctx, domain.OperationResourceDeployment, deploymentID)
 }
 
 func defaultString(value string, fallback string) string {

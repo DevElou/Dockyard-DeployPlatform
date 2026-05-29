@@ -13,6 +13,7 @@ import (
 	"github.com/elouan/dockyard/internal/adapters/httpclient"
 	"github.com/elouan/dockyard/internal/adapters/nginxproxymanager"
 	"github.com/elouan/dockyard/internal/adapters/postgres"
+	"github.com/elouan/dockyard/internal/application/operationlog"
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/agent"
 	"github.com/elouan/dockyard/internal/ports/routing"
@@ -64,12 +65,14 @@ func main() {
 	projectRepo := postgres.NewProjectRepository(pool)
 	src := github.NewSourceProvider(githubToken, projectRepo)
 	builder := dockerregistry.NewBuilder(registryURL)
+	events := operationlog.NewService(postgres.NewOperationLogRepository(pool))
 
 	buildWorker := NewBuildWorker(
 		postgres.NewReleaseRepository(pool),
 		projectRepo,
 		src,
 		builder,
+		events,
 	)
 
 	deployWorker := NewDeployWorker(
@@ -83,6 +86,7 @@ func main() {
 		postgres.NewDomainRepository(pool),
 		routingProvider,
 		factory,
+		events,
 	)
 
 	buildDone := make(chan struct{})

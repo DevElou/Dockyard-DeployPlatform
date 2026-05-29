@@ -31,6 +31,7 @@ func main() {
 	})
 	mux.HandleFunc("POST /deployments", h.authMiddleware(h.handleDeploy))
 	mux.HandleFunc("GET /deployments/{id}", h.authMiddleware(h.handleGetStatus))
+	mux.HandleFunc("GET /deployments/{id}/logs", h.authMiddleware(h.handleGetLogs))
 	mux.HandleFunc("DELETE /deployments/{id}", h.authMiddleware(h.handleRemove))
 
 	srv := &http.Server{Addr: addr, Handler: mux}

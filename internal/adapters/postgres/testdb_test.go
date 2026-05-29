@@ -31,7 +31,7 @@ func setupTestDB(t *testing.T) *pgxpool.Pool {
 	t.Cleanup(func() {
 		// truncate in FK-safe order
 		_, _ = pool.Exec(context.Background(), `
-			TRUNCATE deployment_steps, deployments, build_jobs, releases,
+			TRUNCATE operation_events, deployment_steps, deployments, build_jobs, releases,
 			         domains, project_services, environment_variables, environment_sets,
 			         project_runtime_targets, projects, runtime_targets CASCADE
 		`)

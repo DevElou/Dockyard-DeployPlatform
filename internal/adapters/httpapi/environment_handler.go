@@ -6,7 +6,30 @@ import (
 
 	"github.com/elouan/dockyard/internal/adapters/httpjson"
 	envapp "github.com/elouan/dockyard/internal/application/environment"
+	"github.com/elouan/dockyard/internal/domain"
 )
+
+type variableResponse struct {
+	ID               string `json:"id"`
+	EnvironmentSetID string `json:"environmentSetId"`
+	Key              string `json:"key"`
+	Value            string `json:"value"`
+	IsSecret         bool   `json:"isSecret"`
+}
+
+func toVariableResponse(v domain.EnvironmentVariable) variableResponse {
+	value := v.Value
+	if v.IsSecret {
+		value = "[REDACTED]"
+	}
+	return variableResponse{
+		ID:               v.ID,
+		EnvironmentSetID: v.EnvironmentSetID,
+		Key:              v.Key,
+		Value:            value,
+		IsSecret:         v.IsSecret,
+	}
+}
 
 func handleListEnvironmentSets(svc *envapp.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -61,7 +84,11 @@ func handleListVariables(svc *envapp.Service) http.HandlerFunc {
 			httpjson.Error(w, http.StatusInternalServerError, "list_variables_failed", err.Error())
 			return
 		}
-		httpjson.Write(w, http.StatusOK, map[string]any{"items": vars})
+		resp := make([]variableResponse, len(vars))
+		for i, v := range vars {
+			resp[i] = toVariableResponse(v)
+		}
+		httpjson.Write(w, http.StatusOK, map[string]any{"items": resp})
 	}
 }
 
