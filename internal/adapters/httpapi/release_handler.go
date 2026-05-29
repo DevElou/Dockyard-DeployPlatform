@@ -64,3 +64,20 @@ func handleGetRelease(svc *releaseapp.Service) http.HandlerFunc {
 		httpjson.Write(w, http.StatusOK, release)
 	}
 }
+
+func handleListReleaseEvents(svc *releaseapp.Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := requireParam(r, "releaseId")
+		if err != nil {
+			httpjson.Error(w, http.StatusBadRequest, "missing_param", err.Error())
+			return
+		}
+
+		events, err := svc.ListEvents(r.Context(), id)
+		if err != nil {
+			httpjson.Error(w, http.StatusInternalServerError, "list_events_failed", err.Error())
+			return
+		}
+		httpjson.Write(w, http.StatusOK, map[string]any{"items": events})
+	}
+}

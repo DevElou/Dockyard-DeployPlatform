@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 
+	"github.com/elouan/dockyard/internal/application/containerlogs"
 	deploymentapp "github.com/elouan/dockyard/internal/application/deployment"
 	domainsvc "github.com/elouan/dockyard/internal/application/domainsvc"
 	envapp "github.com/elouan/dockyard/internal/application/environment"
@@ -20,12 +21,15 @@ type RouterDeps struct {
 	DomainService         *domainsvc.Service
 	ProjectServiceService *projectserviceapp.Service
 	EnvironmentService    *envapp.Service
+	ContainerLogsService  *containerlogs.Service
+	System                SystemInfo
 }
 
 func NewRouter(deps RouterDeps) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /healthz", handleHealth)
+	mux.HandleFunc("GET /api/v1/system/info", handleSystemInfo(deps.System))
 
 	// Projects
 	mux.HandleFunc("GET /api/v1/projects", handleListProjects(deps.ProjectService))
@@ -46,11 +50,14 @@ func NewRouter(deps RouterDeps) http.Handler {
 	mux.HandleFunc("GET /api/v1/projects/{projectId}/releases", handleListReleases(deps.ReleaseService))
 	mux.HandleFunc("POST /api/v1/projects/{projectId}/releases", handleCreateRelease(deps.ReleaseService))
 	mux.HandleFunc("GET /api/v1/projects/{projectId}/releases/{releaseId}", handleGetRelease(deps.ReleaseService))
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/releases/{releaseId}/events", handleListReleaseEvents(deps.ReleaseService))
 
 	// Deployments
 	mux.HandleFunc("GET /api/v1/projects/{projectId}/deployments", handleListDeployments(deps.DeploymentService))
 	mux.HandleFunc("POST /api/v1/projects/{projectId}/deployments", handleCreateDeployment(deps.DeploymentService))
 	mux.HandleFunc("GET /api/v1/projects/{projectId}/deployments/{deploymentId}", handleGetDeployment(deps.DeploymentService))
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/deployments/{deploymentId}/events", handleListDeploymentEvents(deps.DeploymentService))
+	mux.HandleFunc("GET /api/v1/projects/{projectId}/deployments/{deploymentId}/container-logs", handleGetDeploymentContainerLogs(deps.ContainerLogsService))
 
 	// Domains
 	mux.HandleFunc("GET /api/v1/projects/{projectId}/domains", handleListDomains(deps.DomainService))

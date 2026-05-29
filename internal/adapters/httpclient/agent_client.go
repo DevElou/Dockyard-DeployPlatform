@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/elouan/dockyard/internal/ports/agent"
@@ -82,6 +84,42 @@ func (c *AgentClient) GetStatus(ctx context.Context, deploymentID string) (agent
 		return agent.StatusResponse{}, fmt.Errorf("agent client: decode status response: %w", err)
 	}
 	return result, nil
+}
+
+func (c *AgentClient) GetLogs(ctx context.Context, req agent.LogsRequest) (agent.LogsResponse, error) {
+	if req.DeploymentID == "" {
+		return agent.LogsResponse{}, fmt.Errorf("agent client: deployment ID is required")
+	}
+
+	endpoint := c.baseURL + "/deployments/" + url.PathEscape(req.DeploymentID) + "/logs"
+	if req.Tail > 0 {
+		endpoint += "?tail=" + strconv.Itoa(req.Tail)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return agent.LogsResponse{}, fmt.Errorf("agent client: build logs request: %w", err)
+	}
+	httpReq.Header.Set("X-Agent-Key", c.apiKey)
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return agent.LogsResponse{}, fmt.Errorf("agent client: get logs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return agent.LogsResponse{}, fmt.Errorf("agent client: deployment %s logs not found", req.DeploymentID)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return agent.LogsResponse{}, fmt.Errorf("agent client: get logs: unexpected status %d", resp.StatusCode)
+	}
+
+	var out agent.LogsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return agent.LogsResponse{}, fmt.Errorf("agent client: decode logs response: %w", err)
+	}
+	return out, nil
 }
 
 func (c *AgentClient) Remove(ctx context.Context, deploymentID string) error {

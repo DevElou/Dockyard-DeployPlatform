@@ -10,10 +10,20 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elouan/dockyard/internal/application/operationlog"
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/registry"
 	"github.com/elouan/dockyard/internal/ports/repository"
 	"github.com/elouan/dockyard/internal/ports/source"
+)
+
+// Release build phases — kept narrow so the UI timeline reads naturally.
+const (
+	phaseBuildQueued            = "queued"
+	phaseBuildDownloadingSource = "downloading_archive"
+	phaseBuildBuildingImage     = "building_image"
+	phaseBuildSucceeded         = "succeeded"
+	phaseBuildFailed            = "failed"
 )
 
 type BuildWorker struct {
@@ -21,6 +31,7 @@ type BuildWorker struct {
 	projects repository.ProjectRepository
 	source   source.Provider
 	builder  registry.Builder
+	events   *operationlog.Service
 	inFlight sync.Map // releaseID → struct{}
 }
 
@@ -29,12 +40,14 @@ func NewBuildWorker(
 	projects repository.ProjectRepository,
 	src source.Provider,
 	builder registry.Builder,
+	events *operationlog.Service,
 ) *BuildWorker {
 	return &BuildWorker{
 		releases: releases,
 		projects: projects,
 		source:   src,
 		builder:  builder,
+		events:   events,
 	}
 }
 
@@ -78,23 +91,39 @@ func (w *BuildWorker) tick(ctx context.Context, wg *sync.WaitGroup) {
 
 func (w *BuildWorker) processRelease(ctx context.Context, r domain.Release) {
 	log.Printf("build-worker: processing release %s", r.ID)
+	w.events.Info(ctx, domain.OperationResourceRelease, r.ID, phaseBuildQueued,
+		"build worker picked up release", nil)
 
 	if err := w.releases.UpdateBuildStatus(ctx, r.ID, domain.BuildStatusRunning); err != nil {
 		log.Printf("build-worker: claim release %s: %v", r.ID, err)
+		w.events.Error(ctx, domain.OperationResourceRelease, r.ID, phaseBuildFailed,
+			"failed to mark build as running", map[string]string{"error": err.Error()})
 		return
 	}
 
 	result, err := w.build(ctx, r)
 	if err != nil {
 		log.Printf("build-worker: build release %s: %v", r.ID, err)
+		w.events.Error(ctx, domain.OperationResourceRelease, r.ID, phaseBuildFailed,
+			"build failed", map[string]string{"error": truncate(err.Error(), 4000)})
 		w.failBuild(r.ID)
 		return
 	}
 
 	if err := w.releases.UpdateBuildResult(ctx, r.ID, result.ImageRepository, result.ImageTag, result.ImageDigest, domain.BuildStatusSucceeded); err != nil {
 		log.Printf("build-worker: persist build result for release %s: %v", r.ID, err)
+		w.events.Error(ctx, domain.OperationResourceRelease, r.ID, phaseBuildFailed,
+			"failed to persist build result", map[string]string{"error": err.Error()})
+		return
 	}
 	log.Printf("build-worker: release %s built successfully: %s@%s", r.ID, result.ImageTag, result.ImageDigest)
+	w.events.Success(ctx, domain.OperationResourceRelease, r.ID, phaseBuildSucceeded,
+		"image built and pushed",
+		map[string]string{
+			"imageRepository": result.ImageRepository,
+			"imageTag":        result.ImageTag,
+			"imageDigest":     result.ImageDigest,
+		})
 }
 
 func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.BuildResult, error) {
@@ -113,6 +142,10 @@ func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.Bui
 	}
 	defer os.RemoveAll(workDir)
 
+	w.events.Info(ctx, domain.OperationResourceRelease, r.ID, phaseBuildDownloadingSource,
+		"downloading source archive from GitHub",
+		map[string]string{"gitSha": r.GitSHA, "gitRef": r.GitRef})
+
 	if err := w.source.DownloadArchive(ctx, r.ProjectID, r.GitSHA, workDir); err != nil {
 		return registry.BuildResult{}, fmt.Errorf("download archive: %w", err)
 	}
@@ -121,6 +154,10 @@ func (w *BuildWorker) build(ctx context.Context, r domain.Release) (registry.Bui
 	if err != nil {
 		return registry.BuildResult{}, fmt.Errorf("dockerfile path: %w", err)
 	}
+
+	w.events.Info(ctx, domain.OperationResourceRelease, r.ID, phaseBuildBuildingImage,
+		"building and pushing Docker image",
+		map[string]string{"dockerfile": project.DockerfilePath})
 
 	return w.builder.BuildAndPush(ctx, registry.BuildRequest{
 		ProjectID:      r.ProjectID,
@@ -146,4 +183,11 @@ func (w *BuildWorker) failBuild(releaseID string) {
 	if err := w.releases.UpdateBuildStatus(ctx, releaseID, domain.BuildStatusFailed); err != nil {
 		log.Printf("build-worker: fail release %s: %v", releaseID, err)
 	}
+}
+
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "…"
 }

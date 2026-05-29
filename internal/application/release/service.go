@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/elouan/dockyard/internal/application/operationlog"
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/repository"
 	"github.com/elouan/dockyard/internal/ports/source"
@@ -12,10 +13,11 @@ import (
 type Service struct {
 	releases repository.ReleaseRepository
 	source   source.Provider
+	events   *operationlog.Service
 }
 
-func NewService(releases repository.ReleaseRepository, src source.Provider) *Service {
-	return &Service{releases: releases, source: src}
+func NewService(releases repository.ReleaseRepository, src source.Provider, events *operationlog.Service) *Service {
+	return &Service{releases: releases, source: src, events: events}
 }
 
 type CreateReleaseInput struct {
@@ -48,9 +50,26 @@ func (s *Service) Create(ctx context.Context, projectID string, input CreateRele
 		return domain.Release{}, err
 	}
 
-	return s.releases.Create(ctx, release)
+	created, err := s.releases.Create(ctx, release)
+	if err != nil {
+		return domain.Release{}, err
+	}
+
+	if s.events != nil {
+		s.events.Info(ctx, domain.OperationResourceRelease, created.ID, "resolving_source",
+			"resolved git ref to commit",
+			map[string]string{"gitRef": rev.GitRef, "gitSha": rev.CommitSHA})
+	}
+	return created, nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (domain.Release, error) {
 	return s.releases.GetByID(ctx, id)
+}
+
+func (s *Service) ListEvents(ctx context.Context, releaseID string) ([]domain.OperationEvent, error) {
+	if s.events == nil {
+		return []domain.OperationEvent{}, nil
+	}
+	return s.events.ListForResource(ctx, domain.OperationResourceRelease, releaseID)
 }

@@ -8,7 +8,9 @@ import { EmptyState } from "@/components/common/empty-state";
 import { DataGuard } from "@/components/common/data-guard";
 import { DeploymentsTable } from "@/components/projects/deployments-table";
 import { NewDeploymentDialog } from "@/components/projects/new-deployment-dialog";
+import { DeploymentDetailsSheet } from "@/components/projects/deployment-details-sheet";
 import { useDeployments } from "@/lib/hooks/use-deployments";
+import type { Deployment } from "@/lib/types/deployment";
 
 export default function DeploymentsPage({
   params,
@@ -17,7 +19,13 @@ export default function DeploymentsPage({
 }) {
   const { projectId } = use(params);
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Deployment | null>(null);
   const query = useDeployments(projectId);
+
+  const liveSelected =
+    selected && query.data
+      ? (query.data.items.find((d) => d.id === selected.id) ?? selected)
+      : selected;
 
   return (
     <div>
@@ -49,10 +57,21 @@ export default function DeploymentsPage({
           </EmptyState>
         }
       >
-        {(data) => <DeploymentsTable items={data.items} />}
+        {(data) => (
+          <DeploymentsTable items={data.items} onSelect={setSelected} />
+        )}
       </DataGuard>
 
       <NewDeploymentDialog projectId={projectId} open={open} onOpenChange={setOpen} />
+
+      <DeploymentDetailsSheet
+        projectId={projectId}
+        deployment={liveSelected}
+        open={selected !== null}
+        onOpenChange={(o) => {
+          if (!o) setSelected(null);
+        }}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -12,6 +13,11 @@ import (
 	"github.com/elouan/dockyard/internal/domain"
 	"github.com/elouan/dockyard/internal/ports/agent"
 	"github.com/elouan/dockyard/internal/ports/runtime"
+)
+
+const (
+	defaultLogsTail = 300
+	maxLogsTail     = 5000
 )
 
 type deploymentStore struct {
@@ -42,8 +48,19 @@ func (s *deploymentStore) delete(id string) {
 	s.mu.Unlock()
 }
 
+// deploymentDriver is the local subset of runtime.Driver the agent handler
+// actually depends on. Kept here so tests can stub it without spinning up
+// Docker.
+type deploymentDriver interface {
+	PrepareDeployment(ctx context.Context, spec runtime.DeploymentSpec) error
+	ApplyRelease(ctx context.Context, spec runtime.DeploymentSpec) (runtime.DeploymentResult, error)
+	CheckHealth(ctx context.Context, deploymentID string) (runtime.DeploymentResult, error)
+	GetContainerLogs(ctx context.Context, deploymentID string, tail int) (runtime.ContainerLogs, error)
+	DeleteDeployment(ctx context.Context, deploymentID string) error
+}
+
 type agentHandler struct {
-	driver      *docker.Driver
+	driver      deploymentDriver
 	store       *deploymentStore
 	apiKey      string
 	shutdownCtx context.Context
@@ -152,6 +169,45 @@ func (h *agentHandler) handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(agent.StatusResponse{
 		DeploymentID: deploymentID,
 		Result:       result,
+	})
+}
+
+func (h *agentHandler) handleGetLogs(w http.ResponseWriter, r *http.Request) {
+	deploymentID := r.PathValue("id")
+	if deploymentID == "" {
+		jsonError(w, http.StatusBadRequest, "deployment ID is required")
+		return
+	}
+
+	tail := defaultLogsTail
+	if raw := r.URL.Query().Get("tail"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed <= 0 {
+			jsonError(w, http.StatusBadRequest, "tail must be a positive integer")
+			return
+		}
+		if parsed > maxLogsTail {
+			parsed = maxLogsTail
+		}
+		tail = parsed
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+
+	logs, err := h.driver.GetContainerLogs(ctx, deploymentID, tail)
+	if err != nil {
+		log.Printf("agent: get logs for %s: %v", deploymentID, err)
+		jsonError(w, http.StatusNotFound, "container logs not available")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(agent.LogsResponse{
+		DeploymentID: deploymentID,
+		ContainerID:  logs.ContainerID,
+		Tail:         tail,
+		Logs:         logs.Logs,
 	})
 }
 

@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from "./client";
 import type { ListResponse } from "@/lib/types/api";
+import type { OperationEvent } from "@/lib/types/operation-event";
 import type { CreateReleasePayload, Release } from "@/lib/types/release";
 
 export function listReleases(
@@ -20,4 +21,11 @@ export function createRelease(
   payload: CreateReleasePayload,
 ): Promise<Release> {
   return apiPost(`/api/v1/projects/${projectId}/releases`, payload);
+}
+
+export function listReleaseEvents(
+  projectId: string,
+  releaseId: string,
+): Promise<ListResponse<OperationEvent>> {
+  return apiGet(`/api/v1/projects/${projectId}/releases/${releaseId}/events`);
 }

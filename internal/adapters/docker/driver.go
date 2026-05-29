@@ -123,6 +123,45 @@ func (d *Driver) checkHealthByLabel(ctx context.Context, deploymentID string) (r
 	return result, nil
 }
 
+// GetContainerLogs returns the last `tail` log lines from the container for
+// the given deployment. The container is located by the
+// `dockyard.deployment=<id>` label set by ApplyRelease.
+func (d *Driver) GetContainerLogs(ctx context.Context, deploymentID string, tail int) (runtime.ContainerLogs, error) {
+	if tail <= 0 {
+		tail = 300
+	}
+
+	idOut, err := exec.CommandContext(ctx, "docker", "ps", "-aq",
+		"--filter", "label=dockyard.deployment="+deploymentID,
+	).Output()
+	if err != nil {
+		return runtime.ContainerLogs{}, fmt.Errorf("docker: find containers for deployment %s: %w", deploymentID, err)
+	}
+
+	containerID := strings.TrimSpace(string(idOut))
+	if containerID == "" {
+		return runtime.ContainerLogs{}, fmt.Errorf("docker: no container for deployment %s", deploymentID)
+	}
+	if idx := strings.Index(containerID, "\n"); idx >= 0 {
+		containerID = containerID[:idx]
+	}
+
+	var stdout, stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, "docker", "logs",
+		"--tail", fmt.Sprintf("%d", tail),
+		containerID,
+	)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return runtime.ContainerLogs{}, fmt.Errorf("docker: logs %s: %w: %s", containerID, err, stderr.String())
+	}
+
+	// docker logs writes both stdout and stderr; concatenate for the API caller.
+	combined := stdout.String() + stderr.String()
+	return runtime.ContainerLogs{ContainerID: containerID, Logs: combined}, nil
+}
+
 func (d *Driver) Rollback(ctx context.Context, deploymentID string, targetReleaseID string) (runtime.DeploymentResult, error) {
 	// Rollback is handled by the orchestrator creating a new Deployment pointing
 	// to the target release. The driver only cleans up the current deployment.

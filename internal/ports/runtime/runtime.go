@@ -46,10 +46,16 @@ type DeploymentResult struct {
 	FinishedAt   string
 }
 
+type ContainerLogs struct {
+	ContainerID string
+	Logs        string
+}
+
 type Driver interface {
 	PrepareDeployment(ctx context.Context, spec DeploymentSpec) error
 	ApplyRelease(ctx context.Context, spec DeploymentSpec) (DeploymentResult, error)
 	CheckHealth(ctx context.Context, deploymentID string) (DeploymentResult, error)
+	GetContainerLogs(ctx context.Context, deploymentID string, tail int) (ContainerLogs, error)
 	Rollback(ctx context.Context, deploymentID string, targetReleaseID string) (DeploymentResult, error)
 	DeleteDeployment(ctx context.Context, deploymentID string) error
 }
